@@ -1,0 +1,15 @@
+services:
+  app:
+    build: .
+    container_name: body-data-lab-app
+    ports:
+      - "8000:8000"
+    volumes:
+      - ./:/app
+      - sqlite_data:/app/data
+    environment:
+      - DB_PATH=/app/data/body_data_lab.sqlite3
+    command: uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
+
+volumes:
+  sqlite_data:
