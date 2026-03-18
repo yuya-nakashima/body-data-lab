@@ -1,0 +1,52 @@
+# OS / editor
+.DS_Store
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# Environment / secrets
+.env
+.env.*
+
+# Logs
+*.log
+logs/
+
+# Python
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.venv/
+venv/
+
+# Node / dashboard
+node_modules/
+dist/
+coverage/
+
+# Go
+bin/
+*.test
+*.out
+vendor/
+
+# SQLite
+# Default policy: do not track local SQLite database files.
+# If you later need a versioned sample DB, whitelist a specific file explicitly.
+*.db
+*.db-*
+*.sqlite
+*.sqlite3
+*.sqlite-*
+*.sqlite3-*
+
+# Common app data locations
+data/*.db
+data/*.sqlite
+data/*.sqlite3
+db/*.db
+db/*.sqlite
+db/*.sqlite3
