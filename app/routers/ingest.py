@@ -3,6 +3,7 @@ import sqlite3
 from datetime import datetime, timezone
 
 from fastapi import APIRouter, Body, Header, HTTPException
+from fastapi.responses import JSONResponse
 
 from app.core.config import API_KEY
 from app.core.db import ensure_db, get_conn, stable_hash
