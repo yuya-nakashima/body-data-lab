@@ -2,9 +2,9 @@ import json
 import sqlite3
 from datetime import datetime, timezone
 
-from fastapi import APIRouter, Body
-from fastapi.responses import JSONResponse
+from fastapi import APIRouter, Body, Header, HTTPException
 
+from app.core.config import API_KEY
 from app.core.db import ensure_db, get_conn, stable_hash
 from app.services.aggregate_service import aggregate_daily_metrics
 from app.services.normalize_service import normalize_steps
@@ -13,7 +13,9 @@ router = APIRouter(tags=["ingest"])
 
 
 @router.post("/ingest")
-def ingest(payload: dict = Body(...)):
+def ingest(payload: dict = Body(...), x_api_key: str | None = Header(default=None)):
+    if API_KEY and x_api_key != API_KEY:
+        raise HTTPException(status_code=401, detail="Invalid or missing API key")
     ensure_db()
 
     payload_hash = stable_hash(payload)
