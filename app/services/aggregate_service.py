@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import sqlite3
-from datetime import datetime, timezone
+from datetime import date, datetime, timedelta, timezone
 
 from app.core.db import ensure_db, get_conn
 from app.core.timeutil import parse_iso8601, utc_iso_to_jst_day
@@ -511,6 +511,71 @@ def rebuild_steps_total_daily_metrics(limit: int = 5000) -> dict:
         "candidate_count": candidate_count,
         "day_groups": day_groups,
         "upserted_count": upserted_count,
+    }
+
+
+def get_daily_summary(
+    target_day: str | None = None,
+    metric: str = "steps_total",
+) -> dict:
+    """
+    target_day の集計値・前日差分・週平均差を返す。
+    target_day が None の場合は前日（今日 - 1日）を使う。
+    週平均は target_day を含む過去 7 日分が全て揃っている場合のみ計算する。
+    """
+    ensure_db()
+
+    if target_day is None:
+        target_day = (date.today() - timedelta(days=1)).isoformat()
+
+    target_dt = date.fromisoformat(target_day)
+    prev_day = (target_dt - timedelta(days=1)).isoformat()
+    days_7 = [(target_dt - timedelta(days=i)).isoformat() for i in range(7)]
+
+    conn = get_conn()
+
+    def fetch_value(day: str) -> float | None:
+        row = conn.execute(
+            """
+            SELECT value FROM daily_metrics
+            WHERE day = ? AND metric = ?
+            ORDER BY updated_at DESC LIMIT 1
+            """,
+            (day, metric),
+        ).fetchone()
+        return row["value"] if row else None
+
+    current_value = fetch_value(target_day)
+    prev_value = fetch_value(prev_day)
+
+    week_values = [fetch_value(d) for d in days_7]
+    conn.close()
+
+    if all(v is not None for v in week_values):
+        week_avg: float | None = sum(week_values) / 7  # type: ignore[arg-type]
+    else:
+        week_avg = None
+
+    day_diff = (
+        current_value - prev_value
+        if current_value is not None and prev_value is not None
+        else None
+    )
+    week_diff = (
+        current_value - week_avg
+        if current_value is not None and week_avg is not None
+        else None
+    )
+
+    return {
+        "target_day": target_day,
+        "metric": metric,
+        "current_value": current_value,
+        "prev_day": prev_day,
+        "prev_value": prev_value,
+        "day_diff": day_diff,
+        "week_avg": week_avg,
+        "week_diff": week_diff,
     }
 
 

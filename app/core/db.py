@@ -148,6 +148,21 @@ def ensure_db() -> None:
         "CREATE INDEX IF NOT EXISTS idx_daily_metrics_source ON daily_metrics(source);"
     )
 
+    conn.execute(
+        """
+        CREATE TABLE IF NOT EXISTS focus_sessions (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            start_at TEXT NOT NULL,
+            end_at TEXT NOT NULL,
+            duration_seconds INTEGER NOT NULL,
+            created_at TEXT NOT NULL
+        );
+        """
+    )
+    conn.execute(
+        "CREATE INDEX IF NOT EXISTS idx_focus_sessions_start_at ON focus_sessions(start_at);"
+    )
+
     conn.commit()
     conn.close()
 

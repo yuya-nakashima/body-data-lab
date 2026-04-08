@@ -8,6 +8,8 @@
 # Environment / secrets
 .env
 .env.*
+!.env.example
+.envrc
 
 # Logs
 *.log
@@ -32,6 +34,7 @@ bin/
 *.test
 *.out
 vendor/
+cover.out
 
 # SQLite
 # Default policy: do not track local SQLite database files.

@@ -58,7 +58,20 @@ docker compose up --build
 
 ### ローカルでの起動
 
-ローカルでは Python 3.12 系を前提に、`DB_PATH` を明示して起動するのが安全です。
+ローカルではプロジェクト直下の `.venv` を使う前提で、`DB_PATH` を明示して起動するのが安全です。
+
+今回確認した実環境:
+
+- 実行 Python: `/Users/webs/workspace/body-data-lab/.venv/bin/python`
+- ベース Python: `Python 3.9.6`
+- 依存インストール元: `requirements.txt`
+
+補足:
+
+- `Dockerfile` は `python:3.12-slim` ベースです
+- 一方で、このマシンでローカルに使えた `python3` は 3.9.6 でした
+- そのため、ローカル route import の互換性確保用に `eval_type_backport` を依存へ追加しています
+- 将来的にローカル標準を Python 3.12 以上へ揃えられるなら、その時点で再整理して構いません
 
 例:
 
@@ -74,6 +87,31 @@ DB_PATH=./data/body_data_lab.sqlite3 uvicorn app.main:app --reload
 - `app/core/config.py` の既定値は `/app/data/body_data_lab.sqlite3` です
 - この既定値は Docker 向けなので、ローカル実行時は `DB_PATH=./data/body_data_lab.sqlite3` のように指定する運用を推奨します
 - `ensure_db()` が親ディレクトリ作成とテーブル初期化を行うため、`./data` がなくても起動時に作成されます
+
+### ローカルでの最小確認手順
+
+依存インストール後、少なくとも次の確認ができます。
+
+```bash
+.venv/bin/python -c "import app.routers.aggregate, app.routers.normalize, app.main; print('imports_ok')"
+DB_PATH=./data/body_data_lab.sqlite3 .venv/bin/python - <<'PY'
+from fastapi.testclient import TestClient
+from app.main import app
+
+with TestClient(app) as client:
+    print(client.get('/').status_code)
+    print(client.get('/docs').status_code)
+    print(client.get('/openapi.json').status_code)
+PY
+```
+
+この確認では以下を見ています。
+
+- route 層 import が通ること
+- `app.main` import が通ること
+- FastAPI アプリの startup が通ること
+- `DB_PATH` に SQLite ファイルが作成されること
+- `/docs` と `/openapi.json` が 200 を返すこと
 
 ## API / Swagger のアクセス先
 

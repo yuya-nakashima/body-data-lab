@@ -3,6 +3,7 @@ from fastapi import FastAPI
 from app.core.config import DB_PATH
 from app.core.db import ensure_db
 from app.routers.aggregate import router as aggregate_router
+from app.routers.focus import router as focus_router
 from app.routers.ingest import router as ingest_router
 from app.routers.metrics import router as metrics_router
 from app.routers.normalize import router as normalize_router
@@ -23,6 +24,7 @@ def root():
     return {"status": "ok", "db_path": DB_PATH}
 
 
+app.include_router(focus_router)
 app.include_router(ingest_router)
 app.include_router(raw_router)
 app.include_router(normalize_router)

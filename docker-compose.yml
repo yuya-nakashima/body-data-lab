@@ -9,7 +9,34 @@ services:
       - sqlite_data:/app/data
     environment:
       - DB_PATH=/app/data/body_data_lab.sqlite3
+      - MAIL_HOST=mailpit
+      - MAIL_PORT=1025
+      - MAIL_USERNAME=dummy
+      - MAIL_PASSWORD=dummy
+      - MAIL_FROM=etl@local
+      - MAIL_TO=dev@local
+      - MAIL_TLS=false
+    depends_on:
+      - mailpit
     command: uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
+
+  etl:
+    build: .
+    volumes:
+      - ./:/app
+      - sqlite_data:/app/data
+    env_file:
+      - .env
+    environment:
+      - DB_PATH=/app/data/body_data_lab.sqlite3
+    command: python3 -m etl.main
+
+  mailpit:
+    image: axllent/mailpit:latest
+    container_name: body-data-lab-mailpit
+    ports:
+      - "1025:1025"   # SMTP
+      - "8025:8025"   # Web UI
 
 volumes:
   sqlite_data:

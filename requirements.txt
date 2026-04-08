@@ -2,3 +2,9 @@ fastapi==0.115.8
 uvicorn[standard]==0.30.6
 sqlalchemy==2.0.36
 pydantic==2.10.6
+# Local Python 3.9 compatibility for FastAPI route annotation evaluation.
+eval_type_backport==0.3.1
+# Used for in-process smoke checks via FastAPI/Starlette TestClient.
+httpx==0.28.1
+# Testing
+pytest==8.4.2
