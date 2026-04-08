@@ -6,6 +6,8 @@ from fastapi import APIRouter, Body
 from fastapi.responses import JSONResponse
 
 from app.core.db import ensure_db, get_conn, stable_hash
+from app.services.aggregate_service import aggregate_daily_metrics
+from app.services.normalize_service import normalize_steps
 
 router = APIRouter(tags=["ingest"])
 
@@ -30,7 +32,7 @@ def ingest(payload: dict = Body(...)):
             (received_at, source, metric, payload_json, payload_hash),
         )
         conn.commit()
-        return {"ok": True, "inserted": True, "id": cur.lastrowid, "hash": payload_hash}
+        raw_id = cur.lastrowid
     except sqlite3.IntegrityError:
         row = conn.execute(
             "SELECT id FROM raw_events WHERE hash = ?", (payload_hash,)
@@ -46,3 +48,15 @@ def ingest(payload: dict = Body(...)):
         )
     finally:
         conn.close()
+
+    normalize_result = normalize_steps(since_id=raw_id - 1)
+    aggregate_result = aggregate_daily_metrics()
+
+    return {
+        "ok": True,
+        "inserted": True,
+        "id": raw_id,
+        "hash": payload_hash,
+        "normalize": normalize_result,
+        "aggregate": aggregate_result,
+    }
