@@ -96,16 +96,28 @@ def steps_ui() -> HTMLResponse:
 
       <div class="stats" style="margin-top: 16px;">
         <div class="card">
+          <div class="label">最新値</div>
+          <div id="latest" class="value">-</div>
+        </div>
+        <div class="card">
+          <div class="label">前日差分</div>
+          <div id="day-diff" class="value">-</div>
+        </div>
+        <div class="card">
+          <div class="label">週平均差</div>
+          <div id="week-diff" class="value">-</div>
+        </div>
+        <div class="card">
+          <div class="label">7日移動平均</div>
+          <div id="dma7-latest" class="value">-</div>
+        </div>
+        <div class="card">
           <div class="label">平均 (mean)</div>
           <div id="mean" class="value">-</div>
         </div>
         <div class="card">
           <div class="label">標準偏差 (std)</div>
           <div id="std" class="value">-</div>
-        </div>
-        <div class="card">
-          <div class="label">7日移動平均 (最新)</div>
-          <div id="dma7-latest" class="value">-</div>
         </div>
       </div>
     </div>
@@ -152,6 +164,9 @@ def steps_ui() -> HTMLResponse:
         const startDayEl = document.getElementById("start-day");
         const endDayEl = document.getElementById("end-day");
         const rowsCountEl = document.getElementById("rows-count");
+        const latestEl = document.getElementById("latest");
+        const dayDiffEl = document.getElementById("day-diff");
+        const weekDiffEl = document.getElementById("week-diff");
         const meanEl = document.getElementById("mean");
         const stdEl = document.getElementById("std");
         const dma7LatestEl = document.getElementById("dma7-latest");
@@ -176,6 +191,30 @@ def steps_ui() -> HTMLResponse:
           const avg = mean(values);
           const sigma = std(values, avg);
           const dma7Latest = dma7.filter((v) => Number.isFinite(v)).slice(-1)[0] ?? null;
+
+          // 最新値・前日差分・週平均差
+          const latestVal = values.length > 0 ? values[values.length - 1] : null;
+          const prevVal = values.length > 1 ? values[values.length - 2] : null;
+          const week7 = values.length >= 7 ? values.slice(-7) : null;
+          const week7avg = week7 ? mean(week7) : null;
+
+          latestEl.textContent = latestVal !== null ? Math.round(latestVal).toLocaleString("ja-JP") + " 歩" : "-";
+
+          if (latestVal !== null && prevVal !== null) {
+            const diff = Math.round(latestVal - prevVal);
+            dayDiffEl.textContent = (diff >= 0 ? "+" : "") + diff.toLocaleString("ja-JP") + " 歩";
+            dayDiffEl.style.color = diff >= 0 ? "#16a34a" : "#dc2626";
+          } else {
+            dayDiffEl.textContent = "-";
+          }
+
+          if (latestVal !== null && week7avg !== null) {
+            const wdiff = Math.round(latestVal - week7avg);
+            weekDiffEl.textContent = (wdiff >= 0 ? "+" : "") + wdiff.toLocaleString("ja-JP") + " 歩";
+            weekDiffEl.style.color = wdiff >= 0 ? "#16a34a" : "#dc2626";
+          } else {
+            weekDiffEl.textContent = "-";
+          }
 
           meanEl.textContent = formatNumber(avg);
           stdEl.textContent = formatNumber(sigma);
