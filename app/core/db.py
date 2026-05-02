@@ -163,6 +163,24 @@ def ensure_db() -> None:
         "CREATE INDEX IF NOT EXISTS idx_focus_sessions_start_at ON focus_sessions(start_at);"
     )
 
+    conn.execute(
+        """
+        CREATE TABLE IF NOT EXISTS reflections (
+            id                 INTEGER PRIMARY KEY AUTOINCREMENT,
+            recorded_at        TEXT NOT NULL,
+            day                TEXT NOT NULL,
+            want_to_do         TEXT,
+            anxiety            TEXT,
+            unconscious_desire TEXT,
+            free_text          TEXT,
+            created_at         TEXT NOT NULL
+        );
+        """
+    )
+    conn.execute(
+        "CREATE INDEX IF NOT EXISTS idx_reflections_day ON reflections(day);"
+    )
+
     conn.commit()
     conn.close()
 

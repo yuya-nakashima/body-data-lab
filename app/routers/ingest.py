@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 import json
 import sqlite3
 from datetime import datetime, timezone
@@ -52,8 +54,15 @@ def ingest(payload: dict = Body(...), x_api_key: str | None = Header(default=Non
     finally:
         conn.close()
 
-    normalize_result = normalize_steps(since_id=raw_id - 1)
-    aggregate_result = aggregate_daily_metrics()
+    try:
+        normalize_result = normalize_steps(since_id=raw_id - 1)
+    except Exception as exc:
+        normalize_result = {"ok": False, "error": str(exc)}
+
+    try:
+        aggregate_result = aggregate_daily_metrics()
+    except Exception as exc:
+        aggregate_result = {"ok": False, "error": str(exc)}
 
     return {
         "ok": True,
