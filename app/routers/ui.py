@@ -4,6 +4,221 @@ from fastapi.responses import HTMLResponse
 router = APIRouter(prefix="/ui", tags=["ui"])
 
 
+@router.get("/reflections", response_class=HTMLResponse)
+def reflections_ui() -> HTMLResponse:
+    html = """
+<!doctype html>
+<html lang="ja">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>振り返り</title>
+    <style>
+      :root { color-scheme: light; }
+      * { box-sizing: border-box; }
+      body {
+        margin: 0;
+        padding: 24px 20px 40px;
+        font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+        background: #f6f7fb;
+        color: #111827;
+      }
+      h1 {
+        margin: 0 0 4px;
+        font-size: 22px;
+      }
+      .date {
+        font-size: 13px;
+        color: #6b7280;
+        margin-bottom: 24px;
+      }
+      .field {
+        margin-bottom: 20px;
+      }
+      label {
+        display: block;
+        font-size: 13px;
+        color: #6b7280;
+        margin-bottom: 6px;
+      }
+      textarea {
+        width: 100%;
+        min-height: 90px;
+        padding: 12px;
+        font-size: 15px;
+        font-family: inherit;
+        border: 1px solid #e5e7eb;
+        border-radius: 10px;
+        background: #ffffff;
+        color: #111827;
+        resize: vertical;
+        outline: none;
+        transition: border-color 0.15s;
+      }
+      textarea:focus {
+        border-color: #6366f1;
+      }
+      button {
+        width: 100%;
+        padding: 14px;
+        font-size: 16px;
+        font-weight: 600;
+        color: #ffffff;
+        background: #6366f1;
+        border: none;
+        border-radius: 10px;
+        cursor: pointer;
+        margin-top: 8px;
+        transition: background 0.15s;
+      }
+      button:active { background: #4f46e5; }
+      button:disabled { background: #a5b4fc; cursor: default; }
+      .feedback {
+        margin-top: 16px;
+        padding: 12px;
+        border-radius: 10px;
+        font-size: 14px;
+        display: none;
+      }
+      .feedback.success {
+        background: #f0fdf4;
+        color: #16a34a;
+        border: 1px solid #bbf7d0;
+      }
+      .feedback.error {
+        background: #fef2f2;
+        color: #dc2626;
+        border: 1px solid #fecaca;
+      }
+    </style>
+  </head>
+  <body>
+    <h1>今日の振り返り</h1>
+    <div class="date" id="today-date"></div>
+
+    <div class="field">
+      <label>今、本当にやりたいことは何ですか？</label>
+      <textarea id="want_to_do" placeholder="自由に書いてください。"></textarea>
+    </div>
+    <div class="field">
+      <label>今、不安に感じていることはありますか？</label>
+      <textarea id="anxiety" placeholder="自由に書いてください。"></textarea>
+    </div>
+    <div class="field">
+      <label>無意識が求めていると感じることはありますか？</label>
+      <textarea id="unconscious_desire" placeholder="自由に書いてください。"></textarea>
+    </div>
+    <div class="field">
+      <label>自由に書いてください。</label>
+      <textarea id="free_text" placeholder="何でも。"></textarea>
+    </div>
+
+    <button id="save-btn" onclick="save()">保存する</button>
+    <div class="feedback" id="feedback"></div>
+
+    <script>
+      let existingId = null;
+
+      function todayJST() {
+        const now = new Date();
+        const jst = new Date(now.getTime() + 9 * 60 * 60 * 1000);
+        return jst.toISOString().slice(0, 10);
+      }
+
+      function nowJST() {
+        const now = new Date();
+        const jst = new Date(now.getTime() + 9 * 60 * 60 * 1000);
+        return jst.toISOString().replace("Z", "+09:00").slice(0, 19) + "+09:00";
+      }
+
+      function showFeedback(msg, type) {
+        const el = document.getElementById("feedback");
+        el.textContent = msg;
+        el.className = "feedback " + type;
+        el.style.display = "block";
+        setTimeout(() => { el.style.display = "none"; }, 3000);
+      }
+
+      async function init() {
+        const today = todayJST();
+        document.getElementById("today-date").textContent = today;
+
+        try {
+          const res = await fetch("/reflections/today");
+          if (!res.ok) return;
+          const data = await res.json();
+          const r = data.reflection;
+          if (r) {
+            existingId = r.id;
+            document.getElementById("want_to_do").value = r.want_to_do || "";
+            document.getElementById("anxiety").value = r.anxiety || "";
+            document.getElementById("unconscious_desire").value = r.unconscious_desire || "";
+            document.getElementById("free_text").value = r.free_text || "";
+          }
+        } catch (e) {
+          // 無視して空フォームで起動
+        }
+      }
+
+      async function save() {
+        const btn = document.getElementById("save-btn");
+        btn.disabled = true;
+
+        const body = {
+          want_to_do: document.getElementById("want_to_do").value.trim() || null,
+          anxiety: document.getElementById("anxiety").value.trim() || null,
+          unconscious_desire: document.getElementById("unconscious_desire").value.trim() || null,
+          free_text: document.getElementById("free_text").value.trim() || null,
+        };
+
+        const isEmpty = Object.values(body).every(v => v === null);
+        if (isEmpty) {
+          showFeedback("何か入力してから保存してください。", "error");
+          btn.disabled = false;
+          return;
+        }
+
+        try {
+          let res;
+          if (existingId) {
+            res = await fetch("/reflections/" + existingId, {
+              method: "PATCH",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify(body),
+            });
+          } else {
+            res = await fetch("/reflections", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ ...body, recorded_at: nowJST() }),
+            });
+            if (res.ok) {
+              const data = await res.json();
+              existingId = data.reflection?.id ?? null;
+            }
+          }
+
+          if (res.ok) {
+            showFeedback("保存しました。", "success");
+          } else {
+            showFeedback("保存に失敗しました (" + res.status + ")", "error");
+          }
+        } catch (e) {
+          showFeedback("通信エラー: " + e.message, "error");
+        }
+
+        btn.disabled = false;
+      }
+
+      init();
+    </script>
+  </body>
+</html>
+    """
+    return HTMLResponse(content=html)
+
+
+
 @router.get("/steps", response_class=HTMLResponse)
 def steps_ui() -> HTMLResponse:
     html = """
