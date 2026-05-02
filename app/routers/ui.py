@@ -93,7 +93,10 @@ def reflections_ui() -> HTMLResponse:
     </style>
   </head>
   <body>
-    <h1>今日の振り返り</h1>
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px;">
+      <h1 style="margin:0;">今日の振り返り</h1>
+      <a href="/ui/reflections/list" style="font-size:13px;color:#6366f1;text-decoration:none;">過去の記録 →</a>
+    </div>
     <div class="date" id="today-date"></div>
 
     <div class="field">
@@ -217,6 +220,151 @@ def reflections_ui() -> HTMLResponse:
     """
     return HTMLResponse(content=html)
 
+
+
+@router.get("/reflections/list", response_class=HTMLResponse)
+def reflections_list_ui() -> HTMLResponse:
+    html = """
+<!doctype html>
+<html lang="ja">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>振り返り一覧</title>
+    <style>
+      :root { color-scheme: light; }
+      * { box-sizing: border-box; }
+      body {
+        margin: 0;
+        padding: 24px 20px 40px;
+        font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+        background: #f6f7fb;
+        color: #111827;
+      }
+      .header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 20px;
+      }
+      h1 { margin: 0; font-size: 22px; }
+      a.write-btn {
+        font-size: 13px;
+        color: #6366f1;
+        text-decoration: none;
+      }
+      .card {
+        background: #ffffff;
+        border: 1px solid #e5e7eb;
+        border-radius: 10px;
+        padding: 14px;
+        margin-bottom: 12px;
+        cursor: pointer;
+      }
+      .card-date {
+        font-size: 13px;
+        color: #6b7280;
+        margin-bottom: 8px;
+      }
+      .card-body { display: none; }
+      .card.open .card-body { display: block; }
+      .field-label {
+        font-size: 11px;
+        color: #9ca3af;
+        margin-top: 10px;
+        margin-bottom: 2px;
+      }
+      .field-value {
+        font-size: 14px;
+        color: #111827;
+        white-space: pre-wrap;
+        word-break: break-word;
+      }
+      .preview {
+        font-size: 14px;
+        color: #374151;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+      }
+      .empty {
+        text-align: center;
+        color: #9ca3af;
+        margin-top: 60px;
+        font-size: 15px;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="header">
+      <h1>振り返り一覧</h1>
+      <a class="write-btn" href="/ui/reflections">今日を書く →</a>
+    </div>
+    <div id="list"></div>
+
+    <script>
+      const LABELS = {
+        want_to_do: "やりたいこと",
+        anxiety: "不安なこと",
+        unconscious_desire: "無意識が求めること",
+        free_text: "自由記述",
+      };
+
+      function firstText(r) {
+        for (const key of Object.keys(LABELS)) {
+          if (r[key]) return r[key];
+        }
+        return "（入力なし）";
+      }
+
+      function renderCard(r) {
+        const card = document.createElement("div");
+        card.className = "card";
+
+        const fields = Object.entries(LABELS)
+          .filter(([k]) => r[k])
+          .map(([k, label]) => `
+            <div class="field-label">${label}</div>
+            <div class="field-value">${r[k]}</div>
+          `).join("");
+
+        card.innerHTML = `
+          <div class="card-date">${r.day}</div>
+          <div class="preview">${firstText(r)}</div>
+          <div class="card-body">${fields || "<div style='color:#9ca3af;font-size:13px;'>入力なし</div>"}</div>
+        `;
+
+        card.addEventListener("click", () => {
+          card.classList.toggle("open");
+          card.querySelector(".preview").style.display =
+            card.classList.contains("open") ? "none" : "block";
+        });
+
+        return card;
+      }
+
+      async function init() {
+        const listEl = document.getElementById("list");
+        try {
+          const res = await fetch("/reflections?limit=60");
+          const data = await res.json();
+          const reflections = data.reflections || [];
+          if (reflections.length === 0) {
+            listEl.innerHTML = '<div class="empty">まだ記録がありません。</div>';
+            return;
+          }
+          reflections.forEach(r => listEl.appendChild(renderCard(r)));
+        } catch (e) {
+          listEl.innerHTML = '<div class="empty">読み込みに失敗しました。</div>';
+        }
+      }
+
+      init();
+    </script>
+  </body>
+</html>
+    """
+    return HTMLResponse(content=html)
 
 
 @router.get("/steps", response_class=HTMLResponse)

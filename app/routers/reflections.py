@@ -32,6 +32,17 @@ def _row_to_dict(row) -> dict:
     return dict(row)
 
 
+@router.get("")
+def list_reflections(limit: int = 30, offset: int = 0):
+    conn = get_conn()
+    rows = conn.execute(
+        "SELECT * FROM reflections ORDER BY day DESC, id DESC LIMIT ? OFFSET ?",
+        (limit, offset),
+    ).fetchall()
+    conn.close()
+    return {"ok": True, "reflections": [_row_to_dict(r) for r in rows]}
+
+
 @router.post("", status_code=201)
 def create_reflection(body: ReflectionIn):
     fields = [body.want_to_do, body.anxiety, body.unconscious_desire, body.free_text]
