@@ -21,5 +21,7 @@ def parse_iso8601(value: str | None) -> datetime | None:
 
 
 def utc_iso_to_jst_day(iso_str: str) -> str:
+    if not isinstance(iso_str, str):
+        raise ValueError(f"expected str, got {type(iso_str).__name__}: {iso_str!r}")
     dt = datetime.fromisoformat(iso_str.replace("Z", "+00:00"))
     return dt.astimezone(JST).date().isoformat()

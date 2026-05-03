@@ -33,6 +33,7 @@ from app.routers.quality import router as quality_router
 from app.routers.raw import router as raw_router
 from app.routers.reflections import router as reflections_router
 from app.routers.ui import router as ui_router
+from app.routers.wishes import router as wishes_router
 
 app = FastAPI(title="Body Data Lab")
 
@@ -55,4 +56,5 @@ app.include_router(aggregate_router)
 app.include_router(quality_router)
 app.include_router(metrics_router)
 app.include_router(reflections_router)
+app.include_router(wishes_router)
 app.include_router(ui_router)

@@ -31,6 +31,35 @@ from app.core.db import get_conn
 from app.core.timeutil import JST
 from app.services.line_notifier import build_reflection_message, send_line
 
+
+def fetch_wish_list() -> list[dict]:
+    conn = get_conn()
+    categories = conn.execute(
+        "SELECT * FROM wish_categories ORDER BY id"
+    ).fetchall()
+    result = []
+    for cat in categories:
+        items = conn.execute(
+            "SELECT content FROM wish_items WHERE category_id = ? ORDER BY id",
+            (cat["id"],),
+        ).fetchall()
+        result.append({"name": cat["name"], "items": [row["content"] for row in items]})
+    conn.close()
+    return result
+
+
+def build_wish_list_section(categories: list[dict]) -> str:
+    if not categories:
+        return ""
+    lines = ["\n【やりたいことリスト】"]
+    for cat in categories:
+        lines.append(f"\n▷ {cat['name']}")
+        for item in cat["items"]:
+            lines.append(f"  ・{item}")
+        if not cat["items"]:
+            lines.append("  （なし）")
+    return "\n".join(lines)
+
 logger = logging.getLogger(__name__)
 
 
@@ -53,6 +82,9 @@ def main() -> None:
     try:
         reflection = fetch_reflection(yesterday)
         message = build_reflection_message(reflection, yesterday)
+        wish_section = build_wish_list_section(fetch_wish_list())
+        if wish_section:
+            message = message + "\n" + wish_section
         send_line(message)
         logger.info("LINE notification sent for %s", yesterday)
     except Exception:

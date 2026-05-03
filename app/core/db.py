@@ -181,6 +181,29 @@ def ensure_db() -> None:
         "CREATE INDEX IF NOT EXISTS idx_reflections_day ON reflections(day);"
     )
 
+    conn.execute(
+        """
+        CREATE TABLE IF NOT EXISTS wish_categories (
+            id         INTEGER PRIMARY KEY AUTOINCREMENT,
+            name       TEXT NOT NULL UNIQUE,
+            created_at TEXT NOT NULL
+        );
+        """
+    )
+    conn.execute(
+        """
+        CREATE TABLE IF NOT EXISTS wish_items (
+            id          INTEGER PRIMARY KEY AUTOINCREMENT,
+            category_id INTEGER NOT NULL REFERENCES wish_categories(id) ON DELETE CASCADE,
+            content     TEXT NOT NULL,
+            created_at  TEXT NOT NULL
+        );
+        """
+    )
+    conn.execute(
+        "CREATE INDEX IF NOT EXISTS idx_wish_items_category_id ON wish_items(category_id);"
+    )
+
     conn.commit()
     conn.close()
 

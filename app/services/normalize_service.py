@@ -165,8 +165,10 @@ def normalize_steps(limit: int = 100, since_id: int = 0) -> dict:
         else:
             skipped_count += 1
 
-    conn.commit()
-    conn.close()
+    try:
+        conn.commit()
+    finally:
+        conn.close()
 
     return {
         "ok": True,
