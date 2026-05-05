@@ -367,6 +367,215 @@ def reflections_list_ui() -> HTMLResponse:
     return HTMLResponse(content=html)
 
 
+@router.get("/wishes", response_class=HTMLResponse)
+def wishes_ui() -> HTMLResponse:
+    html = """
+<!doctype html>
+<html lang="ja">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>やりたいことリスト</title>
+    <style>
+      :root { color-scheme: light; }
+      * { box-sizing: border-box; }
+      body {
+        margin: 0;
+        padding: 24px 20px 40px;
+        font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+        background: #f6f7fb;
+        color: #111827;
+      }
+      h1 { margin: 0 0 24px; font-size: 22px; }
+      .add-row {
+        display: flex;
+        gap: 8px;
+        margin-bottom: 24px;
+      }
+      input {
+        flex: 1;
+        padding: 10px 12px;
+        font-size: 15px;
+        font-family: inherit;
+        border: 1px solid #e5e7eb;
+        border-radius: 10px;
+        background: #fff;
+        color: #111827;
+        outline: none;
+        transition: border-color 0.15s;
+      }
+      input:focus { border-color: #6366f1; }
+      .btn {
+        padding: 10px 18px;
+        font-size: 14px;
+        font-weight: 600;
+        color: #fff;
+        background: #6366f1;
+        border: none;
+        border-radius: 10px;
+        cursor: pointer;
+        white-space: nowrap;
+        transition: background 0.15s;
+      }
+      .btn:active { background: #4f46e5; }
+      .btn:disabled { background: #a5b4fc; cursor: default; }
+      .btn-danger {
+        padding: 4px 10px;
+        font-size: 12px;
+        background: transparent;
+        color: #9ca3af;
+        border: 1px solid #e5e7eb;
+        border-radius: 6px;
+        cursor: pointer;
+        transition: color 0.15s, border-color 0.15s;
+      }
+      .btn-danger:hover { color: #dc2626; border-color: #dc2626; }
+      .category {
+        background: #fff;
+        border: 1px solid #e5e7eb;
+        border-radius: 12px;
+        margin-bottom: 16px;
+        overflow: hidden;
+      }
+      .category-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        padding: 14px 16px;
+        border-bottom: 1px solid #f3f4f6;
+      }
+      .category-name { font-weight: 600; font-size: 16px; }
+      .items { padding: 8px 16px 12px; }
+      .item {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        padding: 8px 0;
+        border-bottom: 1px solid #f3f4f6;
+        font-size: 15px;
+      }
+      .item:last-child { border-bottom: none; }
+      .item-add-row {
+        display: flex;
+        gap: 8px;
+        margin-top: 10px;
+      }
+      .empty-cat { font-size: 13px; color: #9ca3af; padding: 4px 0 8px; }
+    </style>
+  </head>
+  <body>
+    <h1>やりたいことリスト</h1>
+
+    <div class="add-row">
+      <input id="new-cat" type="text" placeholder="新しいカテゴリ（例: 本）" />
+      <button class="btn" onclick="addCategory()">追加</button>
+    </div>
+
+    <div id="list"></div>
+
+    <script>
+      async function load() {
+        const res = await fetch("/wishes/categories");
+        const data = await res.json();
+        render(data.categories || []);
+      }
+
+      function render(categories) {
+        const listEl = document.getElementById("list");
+        listEl.innerHTML = "";
+        if (categories.length === 0) {
+          listEl.innerHTML = '<div style="text-align:center;color:#9ca3af;margin-top:40px;font-size:15px;">カテゴリがありません</div>';
+          return;
+        }
+        categories.forEach(cat => listEl.appendChild(buildCategory(cat)));
+      }
+
+      function buildCategory(cat) {
+        const el = document.createElement("div");
+        el.className = "category";
+        el.dataset.id = cat.id;
+
+        const itemsHtml = cat.items.length === 0
+          ? '<div class="empty-cat">アイテムなし</div>'
+          : cat.items.map(item => `
+              <div class="item" data-item-id="${item.id}">
+                <span>${escHtml(item.content)}</span>
+                <button class="btn-danger" onclick="deleteItem(${item.id}, this)">削除</button>
+              </div>`).join("");
+
+        el.innerHTML = `
+          <div class="category-header">
+            <span class="category-name">${escHtml(cat.name)}</span>
+            <button class="btn-danger" onclick="deleteCategory(${cat.id}, this)">カテゴリ削除</button>
+          </div>
+          <div class="items">
+            ${itemsHtml}
+            <div class="item-add-row">
+              <input type="text" placeholder="やりたいことを追加" data-cat-id="${cat.id}" />
+              <button class="btn" onclick="addItem(${cat.id}, this)">追加</button>
+            </div>
+          </div>`;
+        return el;
+      }
+
+      function escHtml(str) {
+        return str.replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;");
+      }
+
+      async function addCategory() {
+        const input = document.getElementById("new-cat");
+        const name = input.value.trim();
+        if (!name) return;
+        const res = await fetch("/wishes/categories", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ name }),
+        });
+        if (res.ok) { input.value = ""; load(); }
+      }
+
+      async function deleteCategory(id, btn) {
+        if (!confirm("カテゴリとアイテムをすべて削除しますか？")) return;
+        btn.disabled = true;
+        const res = await fetch("/wishes/categories/" + id, { method: "DELETE" });
+        if (res.ok) load();
+        else btn.disabled = false;
+      }
+
+      async function addItem(categoryId, btn) {
+        const row = btn.closest(".item-add-row");
+        const input = row.querySelector("input");
+        const content = input.value.trim();
+        if (!content) return;
+        btn.disabled = true;
+        const res = await fetch("/wishes/categories/" + categoryId + "/items", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ content }),
+        });
+        if (res.ok) { input.value = ""; load(); }
+        else btn.disabled = false;
+      }
+
+      async function deleteItem(id, btn) {
+        btn.disabled = true;
+        const res = await fetch("/wishes/items/" + id, { method: "DELETE" });
+        if (res.ok) load();
+        else btn.disabled = false;
+      }
+
+      document.getElementById("new-cat").addEventListener("keydown", e => {
+        if (e.key === "Enter") addCategory();
+      });
+
+      load();
+    </script>
+  </body>
+</html>
+    """
+    return HTMLResponse(content=html)
+
+
 @router.get("/steps", response_class=HTMLResponse)
 def steps_ui() -> HTMLResponse:
     html = """
