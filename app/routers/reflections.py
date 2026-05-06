@@ -19,6 +19,11 @@ class ReflectionIn(BaseModel):
     anxiety: Optional[str] = None
     unconscious_desire: Optional[str] = None
     free_text: Optional[str] = None
+    woop_wish: Optional[str] = None
+    woop_outcome: Optional[str] = None
+    woop_obstacle: Optional[str] = None
+    woop_plan: Optional[str] = None
+    implementation_intention: Optional[str] = None
 
 
 class ReflectionPatch(BaseModel):
@@ -26,6 +31,11 @@ class ReflectionPatch(BaseModel):
     anxiety: Optional[str] = None
     unconscious_desire: Optional[str] = None
     free_text: Optional[str] = None
+    woop_wish: Optional[str] = None
+    woop_outcome: Optional[str] = None
+    woop_obstacle: Optional[str] = None
+    woop_plan: Optional[str] = None
+    implementation_intention: Optional[str] = None
 
 
 def _row_to_dict(row) -> dict:
@@ -45,8 +55,12 @@ def list_reflections(limit: int = 30, offset: int = 0):
 
 @router.post("", status_code=201)
 def create_reflection(body: ReflectionIn):
-    fields = [body.want_to_do, body.anxiety, body.unconscious_desire, body.free_text]
-    if all(f is None or f.strip() == "" for f in fields):
+    all_fields = [
+        body.want_to_do, body.anxiety, body.unconscious_desire, body.free_text,
+        body.woop_wish, body.woop_outcome, body.woop_obstacle, body.woop_plan,
+        body.implementation_intention,
+    ]
+    if all(f is None or f.strip() == "" for f in all_fields):
         raise HTTPException(status_code=400, detail="At least one field must be non-empty")
 
     dt = parse_iso8601(body.recorded_at)
@@ -59,10 +73,18 @@ def create_reflection(body: ReflectionIn):
     conn = get_conn()
     cursor = conn.execute(
         """
-        INSERT INTO reflections (recorded_at, day, want_to_do, anxiety, unconscious_desire, free_text, created_at)
-        VALUES (?, ?, ?, ?, ?, ?, ?)
+        INSERT INTO reflections (
+            recorded_at, day, want_to_do, anxiety, unconscious_desire, free_text,
+            woop_wish, woop_outcome, woop_obstacle, woop_plan, implementation_intention,
+            created_at
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         """,
-        (body.recorded_at, day, body.want_to_do, body.anxiety, body.unconscious_desire, body.free_text, created_at),
+        (
+            body.recorded_at, day, body.want_to_do, body.anxiety,
+            body.unconscious_desire, body.free_text,
+            body.woop_wish, body.woop_outcome, body.woop_obstacle, body.woop_plan,
+            body.implementation_intention, created_at,
+        ),
     )
     row_id = cursor.lastrowid
     conn.commit()

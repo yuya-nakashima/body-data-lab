@@ -9,213 +9,232 @@ def reflections_ui() -> HTMLResponse:
     html = """
 <!doctype html>
 <html lang="ja">
-  <head>
-    <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>振り返り</title>
-    <style>
-      :root { color-scheme: light; }
-      * { box-sizing: border-box; }
-      body {
-        margin: 0;
-        padding: 24px 20px 40px;
-        font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
-        background: #f6f7fb;
-        color: #111827;
-      }
-      h1 {
-        margin: 0 0 4px;
-        font-size: 22px;
-      }
-      .date {
-        font-size: 13px;
-        color: #6b7280;
-        margin-bottom: 24px;
-      }
-      .field {
-        margin-bottom: 20px;
-      }
-      label {
-        display: block;
-        font-size: 13px;
-        color: #6b7280;
-        margin-bottom: 6px;
-      }
-      textarea {
-        width: 100%;
-        min-height: 90px;
-        padding: 12px;
-        font-size: 15px;
-        font-family: inherit;
-        border: 1px solid #e5e7eb;
-        border-radius: 10px;
-        background: #ffffff;
-        color: #111827;
-        resize: vertical;
-        outline: none;
-        transition: border-color 0.15s;
-      }
-      textarea:focus {
-        border-color: #6366f1;
-      }
-      button {
-        width: 100%;
-        padding: 14px;
-        font-size: 16px;
-        font-weight: 600;
-        color: #ffffff;
-        background: #6366f1;
-        border: none;
-        border-radius: 10px;
-        cursor: pointer;
-        margin-top: 8px;
-        transition: background 0.15s;
-      }
-      button:active { background: #4f46e5; }
-      button:disabled { background: #a5b4fc; cursor: default; }
-      .feedback {
-        margin-top: 16px;
-        padding: 12px;
-        border-radius: 10px;
-        font-size: 14px;
-        display: none;
-      }
-      .feedback.success {
-        background: #f0fdf4;
-        color: #16a34a;
-        border: 1px solid #bbf7d0;
-      }
-      .feedback.error {
-        background: #fef2f2;
-        color: #dc2626;
-        border: 1px solid #fecaca;
-      }
-    </style>
-  </head>
-  <body>
-    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px;">
-      <h1 style="margin:0;">今日の振り返り</h1>
-      <a href="/ui/reflections/list" style="font-size:13px;color:#6366f1;text-decoration:none;">過去の記録 →</a>
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>振り返り</title>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:-apple-system,BlinkMacSystemFont,'Helvetica Neue',sans-serif;background:#fafaf9;color:#1a1a18;padding:20px 16px 48px;min-height:100vh}
+.app{max-width:660px;margin:0 auto}
+.top-nav{display:flex;align-items:center;justify-content:space-between;margin-bottom:20px}
+.nav-title{font-size:15px;font-weight:500}
+.nav-right{display:flex;align-items:center;gap:12px}
+.nav-date{font-size:12px;color:#888}
+.nav-link{font-size:12px;color:#7F77DD;text-decoration:none}
+.streak-wrap{margin-bottom:20px}
+.streak-meta{display:flex;align-items:center;justify-content:space-between;margin-bottom:8px}
+.streak-ttl{font-size:10px;font-weight:500;letter-spacing:.08em;color:#aaa;text-transform:uppercase}
+.streak-count{font-size:12px;font-weight:500;color:#534AB7}
+.streak-bar{display:flex;gap:3px;flex-wrap:wrap}
+.s-dot{width:22px;height:22px;border-radius:4px;border:1px solid #e8e8e5;display:flex;align-items:center;justify-content:center;font-size:8px;color:#bbb;flex-shrink:0}
+.s-dot.hit{background:#E1F5EE;border-color:#9FE1CB;color:#085041}
+.s-dot.today-dot{border:1.5px solid #7F77DD;color:#534AB7;font-weight:500}
+.r-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:10px;margin-bottom:20px}
+.r-card{background:#fff;border:1px solid #e8e8e5;border-radius:12px;padding:14px}
+.r-tag{display:inline-block;font-size:10px;font-weight:500;padding:2px 8px;border-radius:10px;letter-spacing:.05em;margin-bottom:7px}
+.t-habit{background:#EAF3DE;color:#27500A}
+.t-woop{background:#FAEEDA;color:#633806}
+.t-sc{background:#EEEDFE;color:#3C3489}
+.t-free{background:#F1EFE8;color:#444441}
+.r-q{font-size:13px;font-weight:500;color:#1a1a18;margin-bottom:3px;line-height:1.45}
+.r-hint{font-size:11px;color:#aaa;line-height:1.55;margin-bottom:9px}
+.r-hint strong{font-weight:500;color:#777}
+textarea{width:100%;border:none;outline:none;font-size:13px;color:#1a1a18;background:transparent;resize:none;font-family:inherit;line-height:1.65}
+textarea::placeholder{color:#ccc}
+.woop-rows{display:flex;flex-direction:column;gap:7px}
+.woop-row{display:flex;gap:7px;align-items:flex-start}
+.woop-key{font-size:10px;font-weight:500;color:#BA7517;min-width:14px;margin-top:3px}
+.woop-inp{flex:1;border:none;border-bottom:1px solid #e8e8e5;outline:none;font-size:12px;color:#555;background:transparent;font-family:inherit;padding:2px 0}
+.woop-inp::placeholder{color:#ccc}
+.intention-card{border:1px solid #e8e8e5;border-radius:12px;padding:12px 14px;margin-bottom:20px;background:#fff}
+.int-lbl{font-size:10px;font-weight:500;letter-spacing:.07em;color:#aaa;margin-bottom:3px}
+.int-sub{font-size:11px;color:#bbb;margin-bottom:7px;line-height:1.5}
+.int-inp{border:none;outline:none;font-size:13px;color:#1a1a18;background:transparent;font-family:inherit;width:100%}
+.int-inp::placeholder{color:#ccc}
+.save-row{display:flex;justify-content:flex-end}
+button.save{background:transparent;border:1px solid #ccc;border-radius:8px;padding:8px 22px;font-size:13px;color:#777;cursor:pointer;font-family:inherit;transition:all .15s}
+button.save:hover{background:#f5f5f3;color:#1a1a18}
+button.save:disabled{opacity:.5;cursor:default}
+.feedback{margin-top:12px;padding:10px 14px;border-radius:8px;font-size:13px;display:none;text-align:right}
+.feedback.success{background:#f0fdf4;color:#16a34a;border:1px solid #bbf7d0;display:block}
+.feedback.error{background:#fef2f2;color:#dc2626;border:1px solid #fecaca;display:block}
+</style>
+</head>
+<body>
+<div class="app">
+  <div class="top-nav">
+    <span class="nav-title">振り返り</span>
+    <div class="nav-right">
+      <span class="nav-date" id="navDate"></span>
+      <a class="nav-link" href="/ui/reflections/list">過去の記録 →</a>
     </div>
-    <div class="date" id="today-date"></div>
+  </div>
 
-    <div class="field">
-      <label>今、本当にやりたいことは何ですか？</label>
-      <textarea id="want_to_do" placeholder="自由に書いてください。"></textarea>
+  <div class="streak-wrap">
+    <div class="streak-meta">
+      <span class="streak-ttl">記録（直近14日）</span>
+      <span class="streak-count" id="streakCount"></span>
     </div>
-    <div class="field">
-      <label>今、不安に感じていることはありますか？</label>
-      <textarea id="anxiety" placeholder="自由に書いてください。"></textarea>
+    <div class="streak-bar" id="streakDots"></div>
+  </div>
+
+  <div class="r-grid">
+    <div class="r-card">
+      <span class="r-tag t-habit">習慣モニタリング</span>
+      <div class="r-q">今日どうだった？</div>
+      <div class="r-hint">記録すること自体が目標達成を促進する。崩れた状況も書くとヒントになる。</div>
+      <textarea id="free_text" rows="3" placeholder="例：朝の時間が取れた。夜は疲れていてスキップしてしまった。"></textarea>
     </div>
-    <div class="field">
-      <label>無意識が求めていると感じることはありますか？</label>
-      <textarea id="unconscious_desire" placeholder="自由に書いてください。"></textarea>
+    <div class="r-card">
+      <span class="r-tag t-woop">WOOP</span>
+      <div class="r-q">目標・障害・if-thenプラン</div>
+      <div class="r-hint">理想だけでなく障害も直視すると達成率が上がる。</div>
+      <div class="woop-rows">
+        <div class="woop-row"><span class="woop-key">W</span><input class="woop-inp" id="woop_wish" type="text" placeholder="Wish — 達成したいこと"></div>
+        <div class="woop-row"><span class="woop-key">O</span><input class="woop-inp" id="woop_outcome" type="text" placeholder="Outcome — 達成したらどんな感覚？"></div>
+        <div class="woop-row"><span class="woop-key">O</span><input class="woop-inp" id="woop_obstacle" type="text" placeholder="Obstacle — 邪魔しそうな障害は？"></div>
+        <div class="woop-row"><span class="woop-key">P</span><input class="woop-inp" id="woop_plan" type="text" placeholder="Plan — もし障害が起きたら？"></div>
+      </div>
     </div>
-    <div class="field">
-      <label>自由に書いてください。</label>
-      <textarea id="free_text" placeholder="何でも。"></textarea>
+    <div class="r-card">
+      <span class="r-tag t-sc">Self-Concordance</span>
+      <div class="r-q">「やらなきゃ」、本当にやりたい？</div>
+      <div class="r-hint">内発的動機と一致した目標は達成しやすく、満足度も高い。</div>
+      <textarea id="want_to_do" rows="3" placeholder="例：義務感より、体が軽くなる感覚に焦点を当ててみる。"></textarea>
     </div>
+    <div class="r-card">
+      <span class="r-tag t-free">無意識</span>
+      <div class="r-q">今、無意識が求めていることは？</div>
+      <div class="r-hint">論理より先に、体や感情が欲しがっているものを言語化する。</div>
+      <textarea id="unconscious_desire" rows="3" placeholder="例：静かな時間。誰にも連絡しない夜。"></textarea>
+    </div>
+  </div>
 
-    <button id="save-btn" onclick="save()">保存する</button>
-    <div class="feedback" id="feedback"></div>
+  <div class="intention-card">
+    <div class="int-lbl">明日の意図（Implementation Intention）</div>
+    <div class="int-sub">「もし〜なら、〜する」の形で書く。曖昧な意志より具体的な計画が実行率を上げる。</div>
+    <input class="int-inp" id="implementation_intention" type="text" placeholder="例：朝コーヒーを淹れたら、その場で5分だけ本を開く。">
+  </div>
 
-    <script>
-      let existingId = null;
+  <div class="save-row">
+    <button class="save" id="save-btn" onclick="save()">保存する</button>
+  </div>
+  <div class="feedback" id="feedback"></div>
+</div>
 
-      function todayJST() {
-        const now = new Date();
-        const jst = new Date(now.getTime() + 9 * 60 * 60 * 1000);
-        return jst.toISOString().slice(0, 10);
-      }
+<script>
+let existingId = null;
 
-      function nowJST() {
-        const now = new Date();
-        const jst = new Date(now.getTime() + 9 * 60 * 60 * 1000);
-        return jst.toISOString().replace("Z", "+09:00").slice(0, 19) + "+09:00";
-      }
+function todayJST() {
+  const jst = new Date(Date.now() + 9*60*60*1000);
+  return jst.toISOString().slice(0,10);
+}
+function nowJST() {
+  const jst = new Date(Date.now() + 9*60*60*1000);
+  return jst.toISOString().replace('Z','+09:00').slice(0,19)+'+09:00';
+}
+function v(id){ return document.getElementById(id).value.trim()||null; }
+function set(id,val){ document.getElementById(id).value = val||''; }
 
-      function showFeedback(msg, type) {
-        const el = document.getElementById("feedback");
-        el.textContent = msg;
-        el.className = "feedback " + type;
-        el.style.display = "block";
-        setTimeout(() => { el.style.display = "none"; }, 3000);
-      }
+function showFeedback(msg, type) {
+  const el = document.getElementById('feedback');
+  el.textContent = msg;
+  el.className = 'feedback '+type;
+  setTimeout(()=>{ el.className='feedback'; }, 3000);
+}
 
-      async function init() {
-        const today = todayJST();
-        document.getElementById("today-date").textContent = today;
+async function buildStreak() {
+  const days = ['日','月','火','水','木','金','土'];
+  const today = new Date(Date.now() + 9*60*60*1000);
+  const container = document.getElementById('streakDots');
+  const dates = [];
+  for(let i=13;i>=0;i--){
+    const d = new Date(today);
+    d.setDate(d.getDate()-i);
+    dates.push(d.toISOString().slice(0,10));
+  }
+  let hitSet = new Set();
+  try {
+    const res = await fetch('/reflections?limit=60');
+    const data = await res.json();
+    (data.reflections||[]).forEach(r=>hitSet.add(r.day));
+  } catch(e){}
+  let hits=0;
+  dates.forEach((date,i)=>{
+    const hit=hitSet.has(date);
+    const isToday=i===13;
+    const d=new Date(date+'T00:00:00+09:00');
+    const dot=document.createElement('div');
+    dot.className='s-dot'+(hit?' hit':'')+(isToday?' today-dot':'');
+    dot.textContent=days[d.getDay()];
+    container.appendChild(dot);
+    if(hit)hits++;
+  });
+  document.getElementById('streakCount').textContent=hits+'/14日 記録';
+}
 
-        try {
-          const res = await fetch("/reflections/today");
-          if (!res.ok) return;
-          const data = await res.json();
-          const r = data.reflection;
-          if (r) {
-            existingId = r.id;
-            document.getElementById("want_to_do").value = r.want_to_do || "";
-            document.getElementById("anxiety").value = r.anxiety || "";
-            document.getElementById("unconscious_desire").value = r.unconscious_desire || "";
-            document.getElementById("free_text").value = r.free_text || "";
-          }
-        } catch (e) {
-          // 無視して空フォームで起動
-        }
-      }
+async function init() {
+  const today = todayJST();
+  const d = new Date(today);
+  document.getElementById('navDate').textContent =
+    `${d.getFullYear()} / ${String(d.getMonth()+1).padStart(2,'0')} / ${String(d.getDate()).padStart(2,'0')}`;
+  buildStreak();
+  try {
+    const res = await fetch('/reflections/today');
+    if(!res.ok) return;
+    const data = await res.json();
+    const r = data.reflection;
+    if(r){
+      existingId = r.id;
+      set('free_text', r.free_text);
+      set('woop_wish', r.woop_wish);
+      set('woop_outcome', r.woop_outcome);
+      set('woop_obstacle', r.woop_obstacle);
+      set('woop_plan', r.woop_plan);
+      set('want_to_do', r.want_to_do);
+      set('unconscious_desire', r.unconscious_desire);
+      set('implementation_intention', r.implementation_intention);
+    }
+  } catch(e){}
+}
 
-      async function save() {
-        const btn = document.getElementById("save-btn");
-        btn.disabled = true;
+async function save() {
+  const btn = document.getElementById('save-btn');
+  btn.disabled = true;
+  const body = {
+    free_text: v('free_text'),
+    woop_wish: v('woop_wish'),
+    woop_outcome: v('woop_outcome'),
+    woop_obstacle: v('woop_obstacle'),
+    woop_plan: v('woop_plan'),
+    want_to_do: v('want_to_do'),
+    unconscious_desire: v('unconscious_desire'),
+    implementation_intention: v('implementation_intention'),
+  };
+  if(Object.values(body).every(x=>x===null)){
+    showFeedback('何か入力してから保存してください。','error');
+    btn.disabled=false;
+    return;
+  }
+  try {
+    let res;
+    if(existingId){
+      res = await fetch('/reflections/'+existingId,{method:'PATCH',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});
+    } else {
+      res = await fetch('/reflections',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({...body,recorded_at:nowJST()})});
+      if(res.ok){ const data=await res.json(); existingId=data.reflection?.id??null; }
+    }
+    showFeedback(res.ok?'保存しました。':'保存に失敗しました ('+res.status+')', res.ok?'success':'error');
+  } catch(e){
+    showFeedback('通信エラー: '+e.message,'error');
+  }
+  btn.disabled=false;
+}
 
-        const body = {
-          want_to_do: document.getElementById("want_to_do").value.trim() || null,
-          anxiety: document.getElementById("anxiety").value.trim() || null,
-          unconscious_desire: document.getElementById("unconscious_desire").value.trim() || null,
-          free_text: document.getElementById("free_text").value.trim() || null,
-        };
-
-        const isEmpty = Object.values(body).every(v => v === null);
-        if (isEmpty) {
-          showFeedback("何か入力してから保存してください。", "error");
-          btn.disabled = false;
-          return;
-        }
-
-        try {
-          let res;
-          if (existingId) {
-            res = await fetch("/reflections/" + existingId, {
-              method: "PATCH",
-              headers: { "Content-Type": "application/json" },
-              body: JSON.stringify(body),
-            });
-          } else {
-            res = await fetch("/reflections", {
-              method: "POST",
-              headers: { "Content-Type": "application/json" },
-              body: JSON.stringify({ ...body, recorded_at: nowJST() }),
-            });
-            if (res.ok) {
-              const data = await res.json();
-              existingId = data.reflection?.id ?? null;
-            }
-          }
-
-          if (res.ok) {
-            showFeedback("保存しました。", "success");
-          } else {
-            showFeedback("保存に失敗しました (" + res.status + ")", "error");
-          }
-        } catch (e) {
-          showFeedback("通信エラー: " + e.message, "error");
-        }
-
-        btn.disabled = false;
-      }
-
-      init();
-    </script>
-  </body>
+init();
+</script>
+</body>
 </html>
     """
     return HTMLResponse(content=html)

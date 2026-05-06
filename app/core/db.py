@@ -17,6 +17,20 @@ def _table_columns(conn: sqlite3.Connection, table_name: str) -> set[str]:
     return {row["name"] for row in rows}
 
 
+def _ensure_reflections_columns(conn: sqlite3.Connection) -> None:
+    columns = _table_columns(conn, "reflections")
+    new_cols = [
+        "woop_wish",
+        "woop_outcome",
+        "woop_obstacle",
+        "woop_plan",
+        "implementation_intention",
+    ]
+    for col in new_cols:
+        if col not in columns:
+            conn.execute(f"ALTER TABLE reflections ADD COLUMN {col} TEXT;")
+
+
 def _ensure_measurements_columns(conn: sqlite3.Connection) -> None:
     columns = _table_columns(conn, "measurements")
 
@@ -180,6 +194,7 @@ def ensure_db() -> None:
     conn.execute(
         "CREATE INDEX IF NOT EXISTS idx_reflections_day ON reflections(day);"
     )
+    _ensure_reflections_columns(conn)
 
     conn.execute(
         """
