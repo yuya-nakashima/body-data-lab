@@ -198,6 +198,25 @@ def ensure_db() -> None:
 
     conn.execute(
         """
+        CREATE TABLE IF NOT EXISTS habit_stacks (
+            id           INTEGER PRIMARY KEY AUTOINCREMENT,
+            day          TEXT NOT NULL,
+            content      TEXT NOT NULL,
+            done         INTEGER NOT NULL DEFAULT 0,
+            anchor       TEXT,
+            actions      TEXT,
+            custom_action TEXT,
+            sort_order   INTEGER NOT NULL DEFAULT 0,
+            created_at   TEXT NOT NULL
+        );
+        """
+    )
+    conn.execute(
+        "CREATE INDEX IF NOT EXISTS idx_habit_stacks_day ON habit_stacks(day);"
+    )
+
+    conn.execute(
+        """
         CREATE TABLE IF NOT EXISTS wish_categories (
             id         INTEGER PRIMARY KEY AUTOINCREMENT,
             name       TEXT NOT NULL UNIQUE,

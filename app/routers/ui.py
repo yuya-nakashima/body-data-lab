@@ -12,7 +12,7 @@ def reflections_ui() -> HTMLResponse:
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>振り返り</title>
+<title>習慣スタック日記</title>
 <style>
 *{box-sizing:border-box;margin:0;padding:0}
 body{font-family:-apple-system,BlinkMacSystemFont,'Helvetica Neue',sans-serif;background:#fafaf9;color:#1a1a18;padding:20px 16px 48px;min-height:100vh}
@@ -22,6 +22,36 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Helvetica Neue',sans-serif;ba
 .nav-right{display:flex;align-items:center;gap:12px}
 .nav-date{font-size:12px;color:#888}
 .nav-link{font-size:12px;color:#7F77DD;text-decoration:none}
+.tab-row{display:flex;gap:2px;margin-bottom:24px;border-bottom:1px solid #e8e8e5}
+.tab{font-size:13px;padding:7px 16px 10px;color:#999;cursor:pointer;border-bottom:2px solid transparent;margin-bottom:-1px;transition:all .15s}
+.tab.active{color:#1a1a18;font-weight:500;border-bottom-color:#7F77DD}
+.pane{display:none}.pane.active{display:block}
+.sec-label{font-size:10px;font-weight:500;letter-spacing:.08em;color:#aaa;text-transform:uppercase;margin-bottom:12px}
+.task-list{display:flex;flex-direction:column;gap:8px;margin-bottom:10px}
+.task-card{background:#fff;border:1px solid #e8e8e5;border-radius:12px;overflow:hidden}
+.task-card:focus-within{border-color:#ccc}
+.task-top{display:flex;align-items:center;gap:8px;padding:10px 12px}
+.chk{width:18px;height:18px;border-radius:5px;border:1px solid #ccc;display:flex;align-items:center;justify-content:center;cursor:pointer;flex-shrink:0;background:#fff;transition:all .15s}
+.chk.done{background:#5DCAA5;border-color:#1D9E75}
+.chk svg{display:none}.chk.done svg{display:block}
+.task-inp{flex:1;border:none;outline:none;font-size:14px;color:#1a1a18;background:transparent;font-family:inherit}
+.task-inp::placeholder{color:#bbb}
+.task-inp.struck{text-decoration:line-through;color:#bbb}
+.del-btn{width:20px;height:20px;display:flex;align-items:center;justify-content:center;cursor:pointer;color:#ccc;font-size:13px;border-radius:50%;transition:all .15s;flex-shrink:0}
+.del-btn:hover{background:#f5f5f3;color:#888}
+.task-body{border-top:1px solid #f0f0ee;padding:10px 12px;display:flex;flex-direction:column;gap:10px}
+.stack-row{display:flex;gap:8px;align-items:flex-start}
+.stack-ico{font-size:12px;width:18px;flex-shrink:0;margin-top:2px;text-align:center;color:#bbb}
+.stack-inner{flex:1;display:flex;flex-direction:column;gap:5px}
+.sub-lbl{font-size:11px;color:#bbb;letter-spacing:.04em}
+.line-inp{border:none;border-bottom:1px solid #e8e8e5;outline:none;font-size:13px;color:#555;background:transparent;font-family:inherit;padding:2px 0;width:100%}
+.line-inp::placeholder{color:#ccc}
+.chip-wrap{display:flex;flex-wrap:wrap;gap:4px;margin-bottom:2px}
+.chip{font-size:11px;padding:3px 9px;border-radius:10px;border:1px solid #e8e8e5;cursor:pointer;color:#777;background:#fff;transition:all .12s;white-space:nowrap}
+.chip.sel{background:#EEEDFE;border-color:#AFA9EC;color:#3C3489}
+.add-task{display:flex;align-items:center;gap:6px;cursor:pointer;font-size:13px;color:#bbb;padding:4px 0;border:none;background:transparent;font-family:inherit}
+.add-task:hover{color:#888}
+.divider{border:none;border-top:1px solid #f0f0ee;margin:20px 0}
 .streak-wrap{margin-bottom:20px}
 .streak-meta{display:flex;align-items:center;justify-content:space-between;margin-bottom:8px}
 .streak-ttl{font-size:10px;font-weight:500;letter-spacing:.08em;color:#aaa;text-transform:uppercase}
@@ -39,7 +69,6 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Helvetica Neue',sans-serif;ba
 .t-free{background:#F1EFE8;color:#444441}
 .r-q{font-size:13px;font-weight:500;color:#1a1a18;margin-bottom:3px;line-height:1.45}
 .r-hint{font-size:11px;color:#aaa;line-height:1.55;margin-bottom:9px}
-.r-hint strong{font-weight:500;color:#777}
 textarea{width:100%;border:none;outline:none;font-size:13px;color:#1a1a18;background:transparent;resize:none;font-family:inherit;line-height:1.65}
 textarea::placeholder{color:#ccc}
 .woop-rows{display:flex;flex-direction:column;gap:7px}
@@ -64,106 +93,236 @@ button.save:disabled{opacity:.5;cursor:default}
 <body>
 <div class="app">
   <div class="top-nav">
-    <span class="nav-title">振り返り</span>
+    <span class="nav-title">習慣スタック日記</span>
     <div class="nav-right">
       <span class="nav-date" id="navDate"></span>
       <a class="nav-link" href="/ui/reflections/list">過去の記録 →</a>
     </div>
   </div>
-
-  <div class="streak-wrap">
-    <div class="streak-meta">
-      <span class="streak-ttl">記録（直近14日）</span>
-      <span class="streak-count" id="streakCount"></span>
-    </div>
-    <div class="streak-bar" id="streakDots"></div>
+  <div class="tab-row">
+    <div class="tab active" onclick="sw('today')">今日のスタック</div>
+    <div class="tab" onclick="sw('reflect')">振り返り</div>
   </div>
 
-  <div class="r-grid">
-    <div class="r-card">
-      <span class="r-tag t-habit">習慣モニタリング</span>
-      <div class="r-q">今日どうだった？</div>
-      <div class="r-hint">記録すること自体が目標達成を促進する。崩れた状況も書くとヒントになる。</div>
-      <textarea id="free_text" rows="3" placeholder="例：朝の時間が取れた。夜は疲れていてスキップしてしまった。"></textarea>
+  <!-- 今日のスタック -->
+  <div id="pane-today" class="pane active">
+    <div class="sec-label">今日やること + 習慣スタック</div>
+    <div class="task-list" id="taskList"></div>
+    <button class="add-task" onclick="addTask()">
+      <svg width="14" height="14" viewBox="0 0 14 14" fill="none"><line x1="7" y1="2" x2="7" y2="12" stroke="#bbb" stroke-width="1.5" stroke-linecap="round"/><line x1="2" y1="7" x2="12" y2="7" stroke="#bbb" stroke-width="1.5" stroke-linecap="round"/></svg>
+      タスクを追加
+    </button>
+    <div class="divider"></div>
+    <div class="intention-card">
+      <div class="int-lbl">明日の意図（Implementation Intention）</div>
+      <div class="int-sub">「もし〜なら、〜する」の形で書く。曖昧な意志より具体的な計画が実行率を上げる。</div>
+      <input class="int-inp" id="implementation_intention" type="text" placeholder="例：朝コーヒーを淹れたら、その場で5分だけ本を開く。">
     </div>
-    <div class="r-card">
-      <span class="r-tag t-woop">WOOP</span>
-      <div class="r-q">目標・障害・if-thenプラン</div>
-      <div class="r-hint">理想だけでなく障害も直視すると達成率が上がる。</div>
-      <div class="woop-rows">
-        <div class="woop-row"><span class="woop-key">W</span><input class="woop-inp" id="woop_wish" type="text" placeholder="Wish — 達成したいこと"></div>
-        <div class="woop-row"><span class="woop-key">O</span><input class="woop-inp" id="woop_outcome" type="text" placeholder="Outcome — 達成したらどんな感覚？"></div>
-        <div class="woop-row"><span class="woop-key">O</span><input class="woop-inp" id="woop_obstacle" type="text" placeholder="Obstacle — 邪魔しそうな障害は？"></div>
-        <div class="woop-row"><span class="woop-key">P</span><input class="woop-inp" id="woop_plan" type="text" placeholder="Plan — もし障害が起きたら？"></div>
+    <div class="save-row"><button class="save" id="save-stack-btn" onclick="saveReflection()">保存する</button></div>
+    <div class="feedback" id="feedback-stack"></div>
+  </div>
+
+  <!-- 振り返り -->
+  <div id="pane-reflect" class="pane">
+    <div class="streak-wrap">
+      <div class="streak-meta">
+        <span class="streak-ttl">記録（直近14日）</span>
+        <span class="streak-count" id="streakCount"></span>
+      </div>
+      <div class="streak-bar" id="streakDots"></div>
+    </div>
+    <div class="r-grid">
+      <div class="r-card">
+        <span class="r-tag t-habit">習慣モニタリング</span>
+        <div class="r-q">今日どうだった？</div>
+        <div class="r-hint">記録すること自体が目標達成を促進する。崩れた状況も書くとヒントになる。</div>
+        <textarea id="free_text" rows="3" placeholder="例：朝の時間が取れた。夜は疲れていてスキップしてしまった。"></textarea>
+      </div>
+      <div class="r-card">
+        <span class="r-tag t-woop">WOOP</span>
+        <div class="r-q">目標・障害・if-thenプラン</div>
+        <div class="r-hint">理想だけでなく障害も直視すると達成率が上がる。</div>
+        <div class="woop-rows">
+          <div class="woop-row"><span class="woop-key">W</span><input class="woop-inp" id="woop_wish" type="text" placeholder="Wish — 達成したいこと"></div>
+          <div class="woop-row"><span class="woop-key">O</span><input class="woop-inp" id="woop_outcome" type="text" placeholder="Outcome — 達成したらどんな感覚？"></div>
+          <div class="woop-row"><span class="woop-key">O</span><input class="woop-inp" id="woop_obstacle" type="text" placeholder="Obstacle — 邪魔しそうな障害は？"></div>
+          <div class="woop-row"><span class="woop-key">P</span><input class="woop-inp" id="woop_plan" type="text" placeholder="Plan — もし障害が起きたら？"></div>
+        </div>
+      </div>
+      <div class="r-card">
+        <span class="r-tag t-sc">Self-Concordance</span>
+        <div class="r-q">「やらなきゃ」、本当にやりたい？</div>
+        <div class="r-hint">内発的動機と一致した目標は達成しやすく、満足度も高い。</div>
+        <textarea id="want_to_do" rows="3" placeholder="例：義務感より、体が軽くなる感覚に焦点を当ててみる。"></textarea>
+      </div>
+      <div class="r-card">
+        <span class="r-tag t-free">無意識</span>
+        <div class="r-q">今、無意識が求めていることは？</div>
+        <div class="r-hint">論理より先に、体や感情が欲しがっているものを言語化する。</div>
+        <textarea id="unconscious_desire" rows="3" placeholder="例：静かな時間。誰にも連絡しない夜。"></textarea>
       </div>
     </div>
-    <div class="r-card">
-      <span class="r-tag t-sc">Self-Concordance</span>
-      <div class="r-q">「やらなきゃ」、本当にやりたい？</div>
-      <div class="r-hint">内発的動機と一致した目標は達成しやすく、満足度も高い。</div>
-      <textarea id="want_to_do" rows="3" placeholder="例：義務感より、体が軽くなる感覚に焦点を当ててみる。"></textarea>
-    </div>
-    <div class="r-card">
-      <span class="r-tag t-free">無意識</span>
-      <div class="r-q">今、無意識が求めていることは？</div>
-      <div class="r-hint">論理より先に、体や感情が欲しがっているものを言語化する。</div>
-      <textarea id="unconscious_desire" rows="3" placeholder="例：静かな時間。誰にも連絡しない夜。"></textarea>
-    </div>
+    <div class="save-row"><button class="save" id="save-btn" onclick="saveReflection()">振り返りを保存</button></div>
+    <div class="feedback" id="feedback"></div>
   </div>
-
-  <div class="intention-card">
-    <div class="int-lbl">明日の意図（Implementation Intention）</div>
-    <div class="int-sub">「もし〜なら、〜する」の形で書く。曖昧な意志より具体的な計画が実行率を上げる。</div>
-    <input class="int-inp" id="implementation_intention" type="text" placeholder="例：朝コーヒーを淹れたら、その場で5分だけ本を開く。">
-  </div>
-
-  <div class="save-row">
-    <button class="save" id="save-btn" onclick="save()">保存する</button>
-  </div>
-  <div class="feedback" id="feedback"></div>
 </div>
 
 <script>
+const CHIPS=['本を開く','アプリを起動','PCのこの画面を開く','場所に移動','音楽を流す','水を飲む','ストレッチ','外に出る'];
+const ANCHORS=['起床したら','コーヒーを淹れたら','朝食を終えたら','歯を磨いたら','デスクに座ったら','昼食後に','寝室に入ったら','就寝前に'];
 let existingId = null;
+let TODAY = '';
 
-function todayJST() {
-  const jst = new Date(Date.now() + 9*60*60*1000);
-  return jst.toISOString().slice(0,10);
+function todayJST(){
+  return new Date(Date.now()+9*60*60*1000).toISOString().slice(0,10);
 }
-function nowJST() {
-  const jst = new Date(Date.now() + 9*60*60*1000);
+function nowJST(){
+  const jst=new Date(Date.now()+9*60*60*1000);
   return jst.toISOString().replace('Z','+09:00').slice(0,19)+'+09:00';
 }
 function v(id){ return document.getElementById(id).value.trim()||null; }
-function set(id,val){ document.getElementById(id).value = val||''; }
+function set(id,val){ document.getElementById(id).value=val||''; }
 
-function showFeedback(msg, type) {
-  const el = document.getElementById('feedback');
-  el.textContent = msg;
-  el.className = 'feedback '+type;
-  setTimeout(()=>{ el.className='feedback'; }, 3000);
+function sw(name){
+  ['today','reflect'].forEach(n=>{
+    document.getElementById('pane-'+n).classList.toggle('active',n===name);
+  });
+  document.querySelectorAll('.tab').forEach((t,i)=>{
+    t.classList.toggle('active',['today','reflect'][i]===name);
+  });
 }
 
-async function buildStreak() {
-  const days = ['日','月','火','水','木','金','土'];
-  const today = new Date(Date.now() + 9*60*60*1000);
-  const container = document.getElementById('streakDots');
-  const dates = [];
+/* ---- 習慣スタック ---- */
+function buildTaskCard(stack){
+  const id = stack ? stack.id : null;
+  const chipHtml = CHIPS.map(c=>{
+    const sel = stack && stack.actions && stack.actions.includes(c) ? ' sel' : '';
+    return `<span class="chip${sel}" onclick="toggleChip(this)">${c}</span>`;
+  }).join('');
+  const card = document.createElement('div');
+  card.className = 'task-card';
+  if(id) card.dataset.stackId = id;
+  const done = stack && stack.done;
+  card.innerHTML = `
+    <div class="task-top">
+      <div class="chk${done?' done':''}" onclick="toggleDone(this)">
+        <svg width="10" height="10" viewBox="0 0 10 10"><polyline points="1,5 4,8 9,2" fill="none" stroke="white" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
+      </div>
+      <input class="task-inp${done?' struck':''}" type="text" placeholder="タスクを入力" value="${stack?escHtml(stack.content):''}">
+      <div class="del-btn" onclick="deleteTask(this)">✕</div>
+    </div>
+    <div class="task-body">
+      <div class="stack-row">
+        <span class="stack-ico">⚓</span>
+        <div class="stack-inner">
+          <span class="sub-lbl">アンカー習慣（トリガー）</span>
+          <input class="line-inp anchor-inp" type="text" placeholder="例：コーヒーを淹れたら" value="${stack&&stack.anchor?escHtml(stack.anchor):''}" list="al-${id||'new'}">
+          <datalist id="al-${id||'new'}">${ANCHORS.map(a=>`<option value="${a}">`).join('')}</datalist>
+        </div>
+      </div>
+      <div class="stack-row">
+        <span class="stack-ico">→</span>
+        <div class="stack-inner">
+          <span class="sub-lbl">繋げる先（複数可）</span>
+          <div class="chip-wrap">${chipHtml}</div>
+          <input class="line-inp custom-inp" type="text" placeholder="その他（例：Notionページを開く）" value="${stack&&stack.custom_action?escHtml(stack.custom_action):''}">
+        </div>
+      </div>
+    </div>`;
+  // debounce auto-save
+  card.querySelectorAll('input').forEach(inp=>{
+    inp.addEventListener('change', ()=>autoSaveTask(card));
+  });
+  return card;
+}
+
+function escHtml(s){ return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
+function toggleChip(el){ el.classList.toggle('sel'); autoSaveTask(el.closest('.task-card')); }
+
+async function toggleDone(chkEl){
+  chkEl.classList.toggle('done');
+  const inp = chkEl.closest('.task-top').querySelector('.task-inp');
+  inp.classList.toggle('struck');
+  await autoSaveTask(chkEl.closest('.task-card'));
+}
+
+async function autoSaveTask(card){
+  const stackId = card.dataset.stackId;
+  const content = card.querySelector('.task-inp').value.trim();
+  if(!content) return;
+  const anchor = card.querySelector('.anchor-inp').value.trim()||null;
+  const actions = [...card.querySelectorAll('.chip.sel')].map(c=>c.textContent);
+  const custom_action = card.querySelector('.custom-inp').value.trim()||null;
+  const done = card.querySelector('.chk').classList.contains('done');
+  if(stackId){
+    await fetch('/habit-stacks/'+stackId,{method:'PATCH',headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({content,anchor,actions,custom_action,done})});
+  } else {
+    const res = await fetch('/habit-stacks',{method:'POST',headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({day:TODAY,content,anchor,actions,custom_action,done,sort_order:0})});
+    if(res.ok){ const d=await res.json(); card.dataset.stackId=d.stack.id; }
+  }
+}
+
+async function deleteTask(btn){
+  const card = btn.closest('.task-card');
+  const stackId = card.dataset.stackId;
+  if(stackId) await fetch('/habit-stacks/'+stackId,{method:'DELETE'});
+  card.remove();
+}
+
+function addTask(stack){
+  document.getElementById('taskList').appendChild(buildTaskCard(stack||null));
+}
+
+/* ---- 振り返り ---- */
+function showFeedback(feedbackId, msg, type){
+  const el = document.getElementById(feedbackId);
+  el.textContent=msg; el.className='feedback '+type;
+  setTimeout(()=>{ el.className='feedback'; },3000);
+}
+
+async function saveReflection(){
+  const btn = document.getElementById('save-btn');
+  const btnStack = document.getElementById('save-stack-btn');
+  if(btn) btn.disabled=true;
+  if(btnStack) btnStack.disabled=true;
+  const body={
+    free_text:v('free_text'), woop_wish:v('woop_wish'), woop_outcome:v('woop_outcome'),
+    woop_obstacle:v('woop_obstacle'), woop_plan:v('woop_plan'), want_to_do:v('want_to_do'),
+    unconscious_desire:v('unconscious_desire'), implementation_intention:v('implementation_intention'),
+  };
+  const feedId = document.getElementById('pane-reflect').classList.contains('active')?'feedback':'feedback-stack';
+  try {
+    let res;
+    if(existingId){
+      res=await fetch('/reflections/'+existingId,{method:'PATCH',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});
+    } else {
+      const nonEmpty = Object.values(body).some(x=>x!==null);
+      if(!nonEmpty){ showFeedback(feedId,'何か入力してから保存してください。','error'); if(btn)btn.disabled=false; if(btnStack)btnStack.disabled=false; return; }
+      res=await fetch('/reflections',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({...body,recorded_at:nowJST()})});
+      if(res.ok){ const d=await res.json(); existingId=d.reflection?.id??null; }
+    }
+    showFeedback(feedId, res.ok?'保存しました。':'保存に失敗しました ('+res.status+')', res.ok?'success':'error');
+  } catch(e){ showFeedback(feedId,'通信エラー: '+e.message,'error'); }
+  if(btn) btn.disabled=false;
+  if(btnStack) btnStack.disabled=false;
+}
+
+/* ---- streak ---- */
+async function buildStreak(){
+  const days=['日','月','火','水','木','金','土'];
+  const container=document.getElementById('streakDots');
+  const dates=[];
   for(let i=13;i>=0;i--){
-    const d = new Date(today);
-    d.setDate(d.getDate()-i);
+    const d=new Date(Date.now()+9*60*60*1000); d.setDate(d.getDate()-i);
     dates.push(d.toISOString().slice(0,10));
   }
-  let hitSet = new Set();
-  try {
-    const res = await fetch('/reflections?limit=60');
-    const data = await res.json();
-    (data.reflections||[]).forEach(r=>hitSet.add(r.day));
-  } catch(e){}
+  let hitSet=new Set();
+  try{ const r=await fetch('/reflections?limit=60'); const d=await r.json(); (d.reflections||[]).forEach(r=>hitSet.add(r.day)); }catch(e){}
   let hits=0;
   dates.forEach((date,i)=>{
-    const hit=hitSet.has(date);
-    const isToday=i===13;
+    const hit=hitSet.has(date); const isToday=i===13;
     const d=new Date(date+'T00:00:00+09:00');
     const dot=document.createElement('div');
     dot.className='s-dot'+(hit?' hit':'')+(isToday?' today-dot':'');
@@ -174,62 +333,41 @@ async function buildStreak() {
   document.getElementById('streakCount').textContent=hits+'/14日 記録';
 }
 
-async function init() {
-  const today = todayJST();
-  const d = new Date(today);
-  document.getElementById('navDate').textContent =
+/* ---- init ---- */
+async function init(){
+  TODAY = todayJST();
+  const d=new Date(TODAY);
+  document.getElementById('navDate').textContent=
     `${d.getFullYear()} / ${String(d.getMonth()+1).padStart(2,'0')} / ${String(d.getDate()).padStart(2,'0')}`;
-  buildStreak();
-  try {
-    const res = await fetch('/reflections/today');
-    if(!res.ok) return;
-    const data = await res.json();
-    const r = data.reflection;
-    if(r){
-      existingId = r.id;
-      set('free_text', r.free_text);
-      set('woop_wish', r.woop_wish);
-      set('woop_outcome', r.woop_outcome);
-      set('woop_obstacle', r.woop_obstacle);
-      set('woop_plan', r.woop_plan);
-      set('want_to_do', r.want_to_do);
-      set('unconscious_desire', r.unconscious_desire);
-      set('implementation_intention', r.implementation_intention);
-    }
-  } catch(e){}
-}
 
-async function save() {
-  const btn = document.getElementById('save-btn');
-  btn.disabled = true;
-  const body = {
-    free_text: v('free_text'),
-    woop_wish: v('woop_wish'),
-    woop_outcome: v('woop_outcome'),
-    woop_obstacle: v('woop_obstacle'),
-    woop_plan: v('woop_plan'),
-    want_to_do: v('want_to_do'),
-    unconscious_desire: v('unconscious_desire'),
-    implementation_intention: v('implementation_intention'),
-  };
-  if(Object.values(body).every(x=>x===null)){
-    showFeedback('何か入力してから保存してください。','error');
-    btn.disabled=false;
-    return;
-  }
-  try {
-    let res;
-    if(existingId){
-      res = await fetch('/reflections/'+existingId,{method:'PATCH',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});
+  buildStreak();
+
+  // 習慣スタック読み込み
+  try{
+    const r=await fetch('/habit-stacks?day='+TODAY);
+    const data=await r.json();
+    if(data.stacks && data.stacks.length>0){
+      data.stacks.forEach(s=>addTask(s));
     } else {
-      res = await fetch('/reflections',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({...body,recorded_at:nowJST()})});
-      if(res.ok){ const data=await res.json(); existingId=data.reflection?.id??null; }
+      addTask();
     }
-    showFeedback(res.ok?'保存しました。':'保存に失敗しました ('+res.status+')', res.ok?'success':'error');
-  } catch(e){
-    showFeedback('通信エラー: '+e.message,'error');
-  }
-  btn.disabled=false;
+  }catch(e){ addTask(); }
+
+  // 振り返り読み込み
+  try{
+    const r=await fetch('/reflections/today');
+    if(!r.ok) return;
+    const data=await r.json();
+    const ref=data.reflection;
+    if(ref){
+      existingId=ref.id;
+      set('free_text',ref.free_text); set('woop_wish',ref.woop_wish);
+      set('woop_outcome',ref.woop_outcome); set('woop_obstacle',ref.woop_obstacle);
+      set('woop_plan',ref.woop_plan); set('want_to_do',ref.want_to_do);
+      set('unconscious_desire',ref.unconscious_desire);
+      set('implementation_intention',ref.implementation_intention);
+    }
+  }catch(e){}
 }
 
 init();
