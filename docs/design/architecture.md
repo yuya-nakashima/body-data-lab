@@ -51,6 +51,16 @@ Android 中心で開始し、必要に応じてサーバー分析へ拡張でき
 - 分析処理を Android で持つ範囲
 - 通知や定期再計算の実行主体
 
+## リポジトリ構成と連携
+
+| リポジトリ | 役割 |
+|---|---|
+| `body-data-lab` | FastAPI バックエンド（API・ETL・WebUI） |
+| `body-data-lab-android` | Android アプリ。`body-data-lab` の WebUI（`/ui/*`）を WebView で表示し、API（`/reflections`, `/wishes` 等）を呼び出す |
+
+`body-data-lab-android` は `body-data-lab` の API・WebUI に依存しています。
+バックエンドの画面追加・API変更時は Android 側への影響を確認してください。
+
 ## 関連参照
 
 - [data_collection.md](./data_collection.md)

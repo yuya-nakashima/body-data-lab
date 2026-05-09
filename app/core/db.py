@@ -196,23 +196,49 @@ def ensure_db() -> None:
     )
     _ensure_reflections_columns(conn)
 
+    conn.execute("DROP TABLE IF EXISTS habit_stacks;")
+
     conn.execute(
         """
-        CREATE TABLE IF NOT EXISTS habit_stacks (
-            id           INTEGER PRIMARY KEY AUTOINCREMENT,
-            day          TEXT NOT NULL,
-            content      TEXT NOT NULL,
-            done         INTEGER NOT NULL DEFAULT 0,
-            anchor       TEXT,
-            actions      TEXT,
-            custom_action TEXT,
-            sort_order   INTEGER NOT NULL DEFAULT 0,
-            created_at   TEXT NOT NULL
+        CREATE TABLE IF NOT EXISTS habit_groups (
+            id            INTEGER PRIMARY KEY AUTOINCREMENT,
+            name          TEXT NOT NULL,
+            sort_order    INTEGER NOT NULL DEFAULT 0,
+            woop_wish     TEXT,
+            woop_outcome  TEXT,
+            woop_obstacle TEXT,
+            woop_plan     TEXT,
+            created_at    TEXT NOT NULL
         );
         """
     )
     conn.execute(
-        "CREATE INDEX IF NOT EXISTS idx_habit_stacks_day ON habit_stacks(day);"
+        """
+        CREATE TABLE IF NOT EXISTS habit_group_items (
+            id         INTEGER PRIMARY KEY AUTOINCREMENT,
+            group_id   INTEGER NOT NULL REFERENCES habit_groups(id) ON DELETE CASCADE,
+            content    TEXT NOT NULL,
+            sort_order INTEGER NOT NULL DEFAULT 0,
+            created_at TEXT NOT NULL
+        );
+        """
+    )
+    conn.execute(
+        "CREATE INDEX IF NOT EXISTS idx_habit_group_items_group_id ON habit_group_items(group_id);"
+    )
+    conn.execute(
+        """
+        CREATE TABLE IF NOT EXISTS habit_completions (
+            id      INTEGER PRIMARY KEY AUTOINCREMENT,
+            item_id INTEGER NOT NULL REFERENCES habit_group_items(id) ON DELETE CASCADE,
+            day     TEXT NOT NULL,
+            done    INTEGER NOT NULL DEFAULT 0,
+            UNIQUE(item_id, day)
+        );
+        """
+    )
+    conn.execute(
+        "CREATE INDEX IF NOT EXISTS idx_habit_completions_day ON habit_completions(day);"
     )
 
     conn.execute(
