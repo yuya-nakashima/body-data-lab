@@ -112,25 +112,17 @@ button.save:disabled{opacity:.5;cursor:default}
     </div>
   </div>
   <div class="tab-row">
-    <div class="tab active" onclick="sw('today')">今日のスタック</div>
+    <div class="tab active" onclick="sw('today')">習慣スタック</div>
     <div class="tab" onclick="sw('reflect')">振り返り</div>
   </div>
 
   <!-- 今日のスタック -->
   <div id="pane-today" class="pane active">
     <div class="sec-header">
-      <span class="sec-label">今日の習慣チェック</span>
+      <span class="sec-label">Habit Stacking</span>
       <a class="nav-link" href="/ui/habits">グループを管理 →</a>
     </div>
     <div id="groupList"></div>
-    <div class="divider"></div>
-    <div class="intention-card">
-      <div class="int-lbl">明日の意図（Implementation Intention）</div>
-      <div class="int-sub">「もし〜なら、〜する」の形で書く。曖昧な意志より具体的な計画が実行率を上げる。</div>
-      <input class="int-inp" id="implementation_intention" type="text" placeholder="例：朝コーヒーを淹れたら、その場で5分だけ本を開く。">
-    </div>
-    <div class="save-row"><button class="save" id="save-stack-btn" onclick="saveReflection()">保存する</button></div>
-    <div class="feedback" id="feedback-stack"></div>
   </div>
 
   <!-- 振り返り -->
@@ -273,29 +265,26 @@ function showFeedback(feedbackId, msg, type){
 
 async function saveReflection(){
   const btn = document.getElementById('save-btn');
-  const btnStack = document.getElementById('save-stack-btn');
   if(btn) btn.disabled=true;
-  if(btnStack) btnStack.disabled=true;
   const body={
     free_text:v('free_text'), woop_wish:v('woop_wish'), woop_outcome:v('woop_outcome'),
     woop_obstacle:v('woop_obstacle'), woop_plan:v('woop_plan'), want_to_do:v('want_to_do'),
-    unconscious_desire:v('unconscious_desire'), implementation_intention:v('implementation_intention'),
+    unconscious_desire:v('unconscious_desire'),
   };
-  const feedId = document.getElementById('pane-reflect').classList.contains('active')?'feedback':'feedback-stack';
+  const feedId = 'feedback';
   try {
     let res;
     if(existingId){
       res=await fetch('/reflections/'+existingId,{method:'PATCH',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});
     } else {
       const nonEmpty = Object.values(body).some(x=>x!==null);
-      if(!nonEmpty){ showFeedback(feedId,'何か入力してから保存してください。','error'); if(btn)btn.disabled=false; if(btnStack)btnStack.disabled=false; return; }
+      if(!nonEmpty){ showFeedback(feedId,'何か入力してから保存してください。','error'); if(btn)btn.disabled=false; return; }
       res=await fetch('/reflections',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({...body,recorded_at:nowJST()})});
       if(res.ok){ const d=await res.json(); existingId=d.reflection?.id??null; }
     }
     showFeedback(feedId, res.ok?'保存しました。':'保存に失敗しました ('+res.status+')', res.ok?'success':'error');
   } catch(e){ showFeedback(feedId,'通信エラー: '+e.message,'error'); }
   if(btn) btn.disabled=false;
-  if(btnStack) btnStack.disabled=false;
 }
 
 /* ---- streak ---- */
@@ -342,7 +331,6 @@ async function init(){
       set('woop_outcome',ref.woop_outcome); set('woop_obstacle',ref.woop_obstacle);
       set('woop_plan',ref.woop_plan); set('want_to_do',ref.want_to_do);
       set('unconscious_desire',ref.unconscious_desire);
-      set('implementation_intention',ref.implementation_intention);
     }
   }catch(e){}
 }
