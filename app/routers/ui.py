@@ -351,14 +351,14 @@ def reflections_list_ui() -> HTMLResponse:
 <html lang="ja">
   <head>
     <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
     <title>振り返り一覧</title>
     <style>
       :root { color-scheme: light; }
       * { box-sizing: border-box; }
       body {
         margin: 0;
-        padding: 24px 20px 40px;
+        padding: calc(24px + env(safe-area-inset-top)) 20px 40px;
         font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
         background: #f6f7fb;
         color: #111827;
@@ -505,11 +505,11 @@ def habits_ui() -> HTMLResponse:
 <html lang="ja">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
 <title>習慣グループ管理</title>
 <style>
 *{box-sizing:border-box;margin:0;padding:0}
-body{font-family:-apple-system,BlinkMacSystemFont,'Helvetica Neue',sans-serif;background:#fafaf9;color:#1a1a18;padding:20px 16px 48px;min-height:100vh}
+body{font-family:-apple-system,BlinkMacSystemFont,'Helvetica Neue',sans-serif;background:#fafaf9;color:#1a1a18;padding:calc(20px + env(safe-area-inset-top)) 16px 48px;min-height:100vh}
 .app{max-width:660px;margin:0 auto}
 .top-nav{display:flex;align-items:center;justify-content:space-between;margin-bottom:24px}
 .nav-title{font-size:15px;font-weight:500}
@@ -714,14 +714,14 @@ def wishes_ui() -> HTMLResponse:
 <html lang="ja">
   <head>
     <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
     <title>やりたいことリスト</title>
     <style>
       :root { color-scheme: light; }
       * { box-sizing: border-box; }
       body {
         margin: 0;
-        padding: 24px 20px 40px;
+        padding: calc(24px + env(safe-area-inset-top)) 20px 40px;
         font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
         background: #f6f7fb;
         color: #111827;
@@ -923,7 +923,7 @@ def steps_ui() -> HTMLResponse:
 <html lang="ja">
   <head>
     <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
     <title>Daily Steps</title>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <style>
@@ -932,7 +932,7 @@ def steps_ui() -> HTMLResponse:
       }
       body {
         margin: 0;
-        padding: 24px;
+        padding: calc(24px + env(safe-area-inset-top)) 24px 24px;
         font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
         background: #f6f7fb;
         color: #111827;
