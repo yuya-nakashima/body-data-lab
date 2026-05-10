@@ -37,6 +37,10 @@ class CompletionPatch(BaseModel):
     count: int = 1
 
 
+class ReorderIn(BaseModel):
+    ids: list[int]
+
+
 def _group_with_items(conn, group_id: int, day: Optional[str] = None) -> Optional[dict]:
     row = conn.execute("SELECT * FROM habit_groups WHERE id = ?", (group_id,)).fetchone()
     if row is None:
@@ -88,6 +92,16 @@ def create_group(body: GroupIn):
     return {"ok": True, "group": group}
 
 
+@router.patch("/reorder")
+def reorder_groups(body: ReorderIn):
+    conn = get_conn()
+    for i, group_id in enumerate(body.ids):
+        conn.execute("UPDATE habit_groups SET sort_order = ? WHERE id = ?", (i, group_id))
+    conn.commit()
+    conn.close()
+    return {"ok": True}
+
+
 @router.patch("/{group_id}")
 def patch_group(group_id: int, body: GroupPatch):
     conn = get_conn()
@@ -137,6 +151,16 @@ def create_item(group_id: int, body: ItemIn):
     item = conn.execute("SELECT * FROM habit_group_items WHERE id = ?", (item_id,)).fetchone()
     conn.close()
     return {"ok": True, "item": dict(item)}
+
+
+@router.patch("/{group_id}/items/reorder")
+def reorder_items(group_id: int, body: ReorderIn):
+    conn = get_conn()
+    for i, item_id in enumerate(body.ids):
+        conn.execute("UPDATE habit_group_items SET sort_order = ? WHERE id = ?", (i, item_id))
+    conn.commit()
+    conn.close()
+    return {"ok": True}
 
 
 @router.delete("/items/{item_id}")

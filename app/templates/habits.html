@@ -42,6 +42,9 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Helvetica Neue',sans-serif;ba
 .woop-inp::placeholder{color:#ccc}
 .woop-save{margin-top:8px;font-size:12px;color:#7F77DD;background:none;border:none;cursor:pointer;font-family:inherit;padding:0}
 .empty-msg{text-align:center;color:#bbb;font-size:13px;padding:32px 0}
+.drag-handle{cursor:grab;color:#ccc;font-size:16px;padding:2px 6px;user-select:none;touch-action:none;flex-shrink:0}
+.drag-handle:active{cursor:grabbing}
+.drag-over{outline:2px solid #7F77DD;border-radius:12px}
 </style>
 </head>
 <body>
@@ -64,6 +67,12 @@ async function load(){
   const res = await fetch('/habit-groups');
   const data = await res.json();
   render(data.groups || []);
+  makeSortable(document.getElementById('groupList'), '.group-card', async (ids) => {
+    await fetch('/habit-groups/reorder', {
+      method:'PATCH', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({ids})
+    });
+  });
 }
 
 function render(groups){
@@ -80,14 +89,17 @@ function buildCard(group){
   const card = document.createElement('div');
   card.className = 'group-card';
   card.dataset.id = group.id;
+  card.draggable = true;
   const itemsHtml = group.items.map(item => `
-    <div class="item-row" data-item-id="${item.id}">
+    <div class="item-row" draggable="true" data-id="${item.id}">
+      <span class="drag-handle">≡</span>
       <span class="item-text">${escHtml(item.content)}</span>
       <button class="btn-icon btn-del" onclick="deleteItem(${item.id}, this)">✕</button>
     </div>`).join('') || '';
   const hasWoop = group.woop_wish || group.woop_outcome || group.woop_obstacle || group.woop_plan;
   card.innerHTML = `
     <div class="group-head">
+      <span class="drag-handle">≡</span>
       <input class="group-name-inp" value="${escHtml(group.name)}" onblur="renameGroup(${group.id}, this)">
       <button class="btn-icon btn-del" onclick="deleteGroup(${group.id}, this)" title="グループ削除">🗑</button>
     </div>
@@ -111,7 +123,84 @@ function buildCard(group){
   card.querySelector('.item-txt-inp').addEventListener('keydown', e => {
     if(e.key === 'Enter') card.querySelector('.btn-sm').click();
   });
+  makeSortable(card.querySelector('.items-area'), '[data-id]', async (ids) => {
+    await fetch('/habit-groups/'+group.id+'/items/reorder', {
+      method:'PATCH', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({ids})
+    });
+  });
   return card;
+}
+
+function makeSortable(container, itemSel, onReorder) {
+  let dragging = null;
+  let clone = null;
+  let offsetX = 0, offsetY = 0;
+
+  // Desktop
+  container.addEventListener('dragstart', e => {
+    const el = e.target.closest(itemSel);
+    if (!el || !container.contains(el)) return;
+    dragging = el;
+    setTimeout(() => { if(dragging) dragging.style.opacity = '0.3'; }, 0);
+    e.dataTransfer.effectAllowed = 'move';
+    e.stopPropagation();
+  });
+  container.addEventListener('dragend', e => {
+    if (dragging) { dragging.style.opacity = ''; dragging = null; }
+  });
+  container.addEventListener('dragover', e => {
+    e.preventDefault(); e.stopPropagation();
+    const target = e.target.closest(itemSel);
+    if (!target || target === dragging || !container.contains(target)) return;
+    const mid = target.getBoundingClientRect().top + target.getBoundingClientRect().height / 2;
+    if (e.clientY > mid) target.after(dragging); else target.before(dragging);
+  });
+  container.addEventListener('drop', e => {
+    e.preventDefault(); e.stopPropagation();
+    const ids = [...container.querySelectorAll(itemSel)].map(el => parseInt(el.dataset.id));
+    onReorder(ids);
+  });
+
+  // Touch
+  container.addEventListener('touchstart', e => {
+    const handle = e.target.closest('.drag-handle');
+    if (!handle || !container.contains(handle)) return;
+    const el = handle.closest(itemSel);
+    if (!el) return;
+    dragging = el;
+    const touch = e.touches[0];
+    const rect = el.getBoundingClientRect();
+    offsetX = touch.clientX - rect.left;
+    offsetY = touch.clientY - rect.top;
+    clone = el.cloneNode(true);
+    clone.style.cssText = `position:fixed;left:${rect.left}px;top:${rect.top}px;width:${rect.width}px;opacity:0.85;pointer-events:none;z-index:1000;box-shadow:0 4px 20px rgba(0,0,0,.15);border-radius:10px`;
+    document.body.appendChild(clone);
+    el.style.opacity = '0.3';
+    e.preventDefault();
+  }, {passive:false});
+
+  container.addEventListener('touchmove', e => {
+    if (!dragging || !clone) return;
+    const touch = e.touches[0];
+    clone.style.left = (touch.clientX - offsetX) + 'px';
+    clone.style.top  = (touch.clientY - offsetY) + 'px';
+    const target = document.elementFromPoint(touch.clientX, touch.clientY)?.closest(itemSel);
+    if (target && target !== dragging && container.contains(target)) {
+      const mid = target.getBoundingClientRect().top + target.getBoundingClientRect().height / 2;
+      if (touch.clientY > mid) target.after(dragging); else target.before(dragging);
+    }
+    e.preventDefault();
+  }, {passive:false});
+
+  container.addEventListener('touchend', e => {
+    if (!dragging) return;
+    if (clone) { clone.remove(); clone = null; }
+    dragging.style.opacity = '';
+    const ids = [...container.querySelectorAll(itemSel)].map(el => parseInt(el.dataset.id));
+    onReorder(ids);
+    dragging = null;
+  });
 }
 
 function toggleWoop(btn){
