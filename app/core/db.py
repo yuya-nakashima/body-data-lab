@@ -24,18 +24,11 @@ def _ensure_habit_completions_columns(conn: sqlite3.Connection) -> None:
         conn.execute("UPDATE habit_completions SET count = 1 WHERE done = 1;")
 
 
-def _ensure_reflections_columns(conn: sqlite3.Connection) -> None:
+def _migrate_reflections_columns(conn: sqlite3.Connection) -> None:
     columns = _table_columns(conn, "reflections")
-    new_cols = [
-        "woop_wish",
-        "woop_outcome",
-        "woop_obstacle",
-        "woop_plan",
-        "implementation_intention",
-    ]
-    for col in new_cols:
-        if col not in columns:
-            conn.execute(f"ALTER TABLE reflections ADD COLUMN {col} TEXT;")
+    for col in ("woop_wish", "woop_outcome", "woop_obstacle", "woop_plan", "implementation_intention"):
+        if col in columns:
+            conn.execute(f"ALTER TABLE reflections DROP COLUMN {col};")
 
 
 def _ensure_measurements_columns(conn: sqlite3.Connection) -> None:
@@ -201,7 +194,7 @@ def ensure_db() -> None:
     conn.execute(
         "CREATE INDEX IF NOT EXISTS idx_reflections_day ON reflections(day);"
     )
-    _ensure_reflections_columns(conn)
+    _migrate_reflections_columns(conn)
 
     conn.execute("DROP TABLE IF EXISTS habit_stacks;")
 
