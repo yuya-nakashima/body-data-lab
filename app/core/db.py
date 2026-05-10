@@ -1,9 +1,13 @@
 import hashlib
 import json
 import sqlite3
+from datetime import datetime
 from pathlib import Path
 
 from app.core.config import DB_PATH
+from app.core.timeutil import JST
+
+MIGRATIONS_DIR = Path(__file__).parent.parent.parent / "migrations"
 
 
 def get_conn() -> sqlite3.Connection:
@@ -12,260 +16,49 @@ def get_conn() -> sqlite3.Connection:
     return conn
 
 
-def _table_columns(conn: sqlite3.Connection, table_name: str) -> set[str]:
-    rows = conn.execute(f"PRAGMA table_info({table_name})").fetchall()
-    return {row["name"] for row in rows}
-
-
-def _ensure_habit_completions_columns(conn: sqlite3.Connection) -> None:
-    columns = _table_columns(conn, "habit_completions")
-    if "count" not in columns:
-        conn.execute("ALTER TABLE habit_completions ADD COLUMN count INTEGER NOT NULL DEFAULT 0;")
-        conn.execute("UPDATE habit_completions SET count = 1 WHERE done = 1;")
-
-
-def _migrate_reflections_columns(conn: sqlite3.Connection) -> None:
-    columns = _table_columns(conn, "reflections")
-    for col in ("woop_wish", "woop_outcome", "woop_obstacle", "woop_plan", "implementation_intention"):
-        if col in columns:
-            conn.execute(f"ALTER TABLE reflections DROP COLUMN {col};")
-
-
-def _ensure_measurements_columns(conn: sqlite3.Connection) -> None:
-    columns = _table_columns(conn, "measurements")
-
-    if "source_type" not in columns:
-        conn.execute("ALTER TABLE measurements ADD COLUMN source_type TEXT;")
-    if "source_detail" not in columns:
-        conn.execute("ALTER TABLE measurements ADD COLUMN source_detail TEXT;")
-
-    conn.execute("UPDATE measurements SET source_type = 'other' WHERE source_type IS NULL;")
-
-
-def _seed_source_priority(conn: sqlite3.Connection) -> None:
-    conn.execute(
-        """
-        CREATE TABLE IF NOT EXISTS source_priority (
-            source_type TEXT PRIMARY KEY,
-            priority INTEGER NOT NULL
-        );
-        """
-    )
-    conn.executemany(
-        """
-        INSERT INTO source_priority (source_type, priority)
-        VALUES (?, ?)
-        ON CONFLICT(source_type) DO UPDATE SET
-            priority = excluded.priority
-        """,
-        [
-            ("watch", 1),
-            ("phone", 2),
-            ("other", 3),
-        ],
-    )
-
-
-def ensure_db() -> None:
+def run_migrations() -> None:
     db_path = Path(DB_PATH)
     db_path.parent.mkdir(parents=True, exist_ok=True)
 
     conn = get_conn()
     conn.execute(
         """
-        CREATE TABLE IF NOT EXISTS raw_events (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            received_at TEXT NOT NULL,
-            source TEXT,
-            metric TEXT,
-            payload_json TEXT NOT NULL,
-            hash TEXT NOT NULL UNIQUE
-        );
-        """
-    )
-    conn.execute(
-        """
-        CREATE TABLE IF NOT EXISTS measurements (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            raw_event_id INTEGER NOT NULL,
-            source TEXT NOT NULL,
-            source_type TEXT,
-            source_detail TEXT,
-            metric TEXT NOT NULL,
-            ts_start TEXT,
-            ts_end TEXT,
-            value REAL,
-            unit TEXT,
-            quality_flag INTEGER NOT NULL DEFAULT 0,
-            created_at TEXT NOT NULL,
-            UNIQUE(raw_event_id, metric, ts_start, ts_end)
-        );
-        """
-    )
-    _ensure_measurements_columns(conn)
-
-    _seed_source_priority(conn)
-
-    conn.execute(
-        """
-        CREATE TABLE IF NOT EXISTS daily_metrics (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            day TEXT NOT NULL,
-            source TEXT NOT NULL,
-            metric TEXT NOT NULL,
-            value REAL,
-            unit TEXT,
-            derived_from_measurement_id INTEGER,
-            derived_ts_end TEXT,
-            updated_at TEXT NOT NULL,
-            UNIQUE(day, source, metric)
-        );
-        """
-    )
-
-    conn.execute(
-        "CREATE INDEX IF NOT EXISTS idx_raw_events_received_at ON raw_events(received_at);"
-    )
-    conn.execute("CREATE INDEX IF NOT EXISTS idx_raw_events_source ON raw_events(source);")
-    conn.execute("CREATE INDEX IF NOT EXISTS idx_raw_events_metric ON raw_events(metric);")
-
-    conn.execute(
-        "CREATE INDEX IF NOT EXISTS idx_measurements_ts_start ON measurements(ts_start);"
-    )
-    conn.execute(
-        "CREATE INDEX IF NOT EXISTS idx_measurements_metric ON measurements(metric);"
-    )
-    conn.execute(
-        "CREATE INDEX IF NOT EXISTS idx_measurements_source ON measurements(source);"
-    )
-    conn.execute(
-        "CREATE INDEX IF NOT EXISTS idx_measurements_raw_event_id ON measurements(raw_event_id);"
-    )
-    conn.execute(
-        "CREATE INDEX IF NOT EXISTS idx_measurements_source_type ON measurements(source_type);"
-    )
-    try:
-        conn.execute(
-            """
-            CREATE UNIQUE INDEX IF NOT EXISTS uq_measurements_source_range
-            ON measurements(source_type, source, metric, ts_start, ts_end);
-            """
+        CREATE TABLE IF NOT EXISTS schema_migrations (
+            version    TEXT PRIMARY KEY,
+            applied_at TEXT NOT NULL
         )
-    except sqlite3.IntegrityError:
-        # Legacy duplicate rows can be cleaned by /measurements/deduplicate-steps-total.
-        pass
-    conn.execute("CREATE INDEX IF NOT EXISTS idx_daily_metrics_day ON daily_metrics(day);")
-    conn.execute(
-        "CREATE INDEX IF NOT EXISTS idx_daily_metrics_metric ON daily_metrics(metric);"
-    )
-    conn.execute(
-        "CREATE INDEX IF NOT EXISTS idx_daily_metrics_source ON daily_metrics(source);"
+        """
     )
 
-    conn.execute(
-        """
-        CREATE TABLE IF NOT EXISTS focus_sessions (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            start_at TEXT NOT NULL,
-            end_at TEXT NOT NULL,
-            duration_seconds INTEGER NOT NULL,
-            created_at TEXT NOT NULL
-        );
-        """
-    )
-    conn.execute(
-        "CREATE INDEX IF NOT EXISTS idx_focus_sessions_start_at ON focus_sessions(start_at);"
-    )
+    migration_files = sorted(MIGRATIONS_DIR.glob("*.sql"))
+    applied = {row["version"] for row in conn.execute("SELECT version FROM schema_migrations")}
 
-    conn.execute(
-        """
-        CREATE TABLE IF NOT EXISTS reflections (
-            id                 INTEGER PRIMARY KEY AUTOINCREMENT,
-            recorded_at        TEXT NOT NULL,
-            day                TEXT NOT NULL,
-            want_to_do         TEXT,
-            anxiety            TEXT,
-            unconscious_desire TEXT,
-            free_text          TEXT,
-            created_at         TEXT NOT NULL
-        );
-        """
-    )
-    conn.execute(
-        "CREATE INDEX IF NOT EXISTS idx_reflections_day ON reflections(day);"
-    )
-    _migrate_reflections_columns(conn)
+    # Bootstrap: existing DB predates the migration system — mark all as applied
+    if not applied:
+        is_existing = conn.execute(
+            "SELECT name FROM sqlite_master WHERE type='table' AND name='raw_events'"
+        ).fetchone()
+        if is_existing:
+            now = datetime.now(JST).isoformat()
+            for f in migration_files:
+                conn.execute(
+                    "INSERT OR IGNORE INTO schema_migrations (version, applied_at) VALUES (?, ?)",
+                    (f.stem, now),
+                )
+            conn.commit()
+            conn.close()
+            return
 
-    conn.execute("DROP TABLE IF EXISTS habit_stacks;")
+    now = datetime.now(JST).isoformat()
+    for f in migration_files:
+        if f.stem not in applied:
+            conn.executescript(f.read_text(encoding="utf-8"))
+            conn.execute(
+                "INSERT INTO schema_migrations (version, applied_at) VALUES (?, ?)",
+                (f.stem, now),
+            )
+            conn.commit()
 
-    conn.execute(
-        """
-        CREATE TABLE IF NOT EXISTS habit_groups (
-            id            INTEGER PRIMARY KEY AUTOINCREMENT,
-            name          TEXT NOT NULL,
-            sort_order    INTEGER NOT NULL DEFAULT 0,
-            woop_wish     TEXT,
-            woop_outcome  TEXT,
-            woop_obstacle TEXT,
-            woop_plan     TEXT,
-            created_at    TEXT NOT NULL
-        );
-        """
-    )
-    conn.execute(
-        """
-        CREATE TABLE IF NOT EXISTS habit_group_items (
-            id         INTEGER PRIMARY KEY AUTOINCREMENT,
-            group_id   INTEGER NOT NULL REFERENCES habit_groups(id) ON DELETE CASCADE,
-            content    TEXT NOT NULL,
-            sort_order INTEGER NOT NULL DEFAULT 0,
-            created_at TEXT NOT NULL
-        );
-        """
-    )
-    conn.execute(
-        "CREATE INDEX IF NOT EXISTS idx_habit_group_items_group_id ON habit_group_items(group_id);"
-    )
-    conn.execute(
-        """
-        CREATE TABLE IF NOT EXISTS habit_completions (
-            id      INTEGER PRIMARY KEY AUTOINCREMENT,
-            item_id INTEGER NOT NULL REFERENCES habit_group_items(id) ON DELETE CASCADE,
-            day     TEXT NOT NULL,
-            done    INTEGER NOT NULL DEFAULT 0,
-            UNIQUE(item_id, day)
-        );
-        """
-    )
-    conn.execute(
-        "CREATE INDEX IF NOT EXISTS idx_habit_completions_day ON habit_completions(day);"
-    )
-    _ensure_habit_completions_columns(conn)
-
-    conn.execute(
-        """
-        CREATE TABLE IF NOT EXISTS wish_categories (
-            id         INTEGER PRIMARY KEY AUTOINCREMENT,
-            name       TEXT NOT NULL UNIQUE,
-            created_at TEXT NOT NULL
-        );
-        """
-    )
-    conn.execute(
-        """
-        CREATE TABLE IF NOT EXISTS wish_items (
-            id          INTEGER PRIMARY KEY AUTOINCREMENT,
-            category_id INTEGER NOT NULL REFERENCES wish_categories(id) ON DELETE CASCADE,
-            content     TEXT NOT NULL,
-            created_at  TEXT NOT NULL
-        );
-        """
-    )
-    conn.execute(
-        "CREATE INDEX IF NOT EXISTS idx_wish_items_category_id ON wish_items(category_id);"
-    )
-
-    conn.commit()
     conn.close()
 
 

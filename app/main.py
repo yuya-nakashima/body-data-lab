@@ -23,7 +23,7 @@ _load_env_file(Path(__file__).resolve().parent.parent / ".env")
 from fastapi import FastAPI
 
 from app.core.config import DB_PATH
-from app.core.db import ensure_db
+from app.core.db import run_migrations
 from app.routers.aggregate import router as aggregate_router
 from app.routers.focus import router as focus_router
 from app.routers.ingest import router as ingest_router
@@ -41,7 +41,7 @@ app = FastAPI(title="Body Data Lab")
 
 @app.on_event("startup")
 def on_startup():
-    ensure_db()
+    run_migrations()
 
 
 @app.get("/")
