@@ -11,11 +11,11 @@ def reflections_ui() -> HTMLResponse:
 <html lang="ja">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
 <title>習慣スタック日記</title>
 <style>
 *{box-sizing:border-box;margin:0;padding:0}
-body{font-family:-apple-system,BlinkMacSystemFont,'Helvetica Neue',sans-serif;background:#fafaf9;color:#1a1a18;padding:20px 16px 48px;min-height:100vh}
+body{font-family:-apple-system,BlinkMacSystemFont,'Helvetica Neue',sans-serif;background:#fafaf9;color:#1a1a18;padding:calc(16px + env(safe-area-inset-top)) 16px calc(48px + env(safe-area-inset-bottom));min-height:100vh}
 .app{max-width:660px;margin:0 auto}
 .top-nav{display:flex;align-items:center;justify-content:space-between;margin-bottom:20px}
 .nav-title{font-size:15px;font-weight:500}
