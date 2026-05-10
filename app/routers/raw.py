@@ -3,14 +3,14 @@ import json
 from fastapi import APIRouter
 from fastapi.responses import JSONResponse
 
-from app.core.db import ensure_db, get_conn
+from app.core.db import run_migrations, get_conn
 
 router = APIRouter(tags=["raw"])
 
 
 @router.get("/raw")
 def list_raw(limit: int = 20):
-    ensure_db()
+    run_migrations()
     limit = max(1, min(limit, 200))
 
     conn = get_conn()
@@ -30,7 +30,7 @@ def list_raw(limit: int = 20):
 
 @router.get("/raw/{event_id}")
 def get_raw(event_id: int):
-    ensure_db()
+    run_migrations()
 
     conn = get_conn()
     row = conn.execute(

@@ -3,7 +3,7 @@ from __future__ import annotations
 import sqlite3
 from datetime import date, datetime, timedelta, timezone
 
-from app.core.db import ensure_db, get_conn
+from app.core.db import run_migrations, get_conn
 from app.core.timeutil import parse_iso8601, utc_iso_to_jst_day
 
 DEFAULT_OTHER_PRIORITY = 3
@@ -359,7 +359,7 @@ def aggregate_daily_metrics(
     limit: int = 500,
     since_measurement_id: int = 0,
 ) -> dict:
-    ensure_db()
+    run_migrations()
 
     conn = get_conn()
     rows = _fetch_measurements_for_aggregation(
@@ -397,7 +397,7 @@ def aggregate_daily_metrics(
 
 
 def deduplicate_steps_total_measurements_job() -> dict:
-    ensure_db()
+    run_migrations()
 
     metric = "steps_total"
     conn = get_conn()
@@ -423,7 +423,7 @@ def deduplicate_steps_total_measurements_job() -> dict:
 
 
 def rebuild_steps_total_daily_metrics(limit: int = 5000) -> dict:
-    ensure_db()
+    run_migrations()
 
     metric = "steps_total"
     conn = get_conn()
@@ -523,7 +523,7 @@ def get_daily_summary(
     target_day が None の場合は前日（今日 - 1日）を使う。
     週平均は target_day を含む過去 7 日分が全て揃っている場合のみ計算する。
     """
-    ensure_db()
+    run_migrations()
 
     if target_day is None:
         target_day = (date.today() - timedelta(days=1)).isoformat()
@@ -582,7 +582,7 @@ def get_daily_summary(
 def list_daily_metrics(
     day: str | None = None, metric: str | None = None, limit: int = 50
 ) -> dict:
-    ensure_db()
+    run_migrations()
 
     sql = [
         """

@@ -8,7 +8,7 @@ from fastapi import APIRouter, Body, Header, HTTPException
 from fastapi.responses import JSONResponse
 
 from app.core.config import API_KEY
-from app.core.db import ensure_db, get_conn, stable_hash
+from app.core.db import run_migrations, get_conn, stable_hash
 from app.services.aggregate_service import aggregate_daily_metrics
 from app.services.normalize_service import normalize_steps
 
@@ -19,7 +19,7 @@ router = APIRouter(tags=["ingest"])
 def ingest(payload: dict = Body(...), x_api_key: str | None = Header(default=None)):
     if API_KEY and x_api_key != API_KEY:
         raise HTTPException(status_code=401, detail="Invalid or missing API key")
-    ensure_db()
+    run_migrations()
 
     payload_hash = stable_hash(payload)
     received_at = datetime.now(timezone.utc).isoformat()

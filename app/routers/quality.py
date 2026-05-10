@@ -5,7 +5,7 @@ from datetime import date, datetime, timedelta, timezone
 
 from fastapi import APIRouter, HTTPException
 
-from app.core.db import ensure_db, get_conn
+from app.core.db import run_migrations, get_conn
 
 router = APIRouter(tags=["quality"])
 
@@ -58,7 +58,7 @@ def get_quality(
     days: int = 30,
     limit: int = 2000,
 ):
-    ensure_db()
+    run_migrations()
     days = max(1, min(days, 3650))
     limit = max(1, min(limit, 20000))
 
@@ -202,7 +202,7 @@ def get_quality_gaps(
     end_day: str | None = None,
     max_span_days: int = 3660,
 ):
-    ensure_db()
+    run_migrations()
     max_span_days = max(1, min(max_span_days, 36500))
 
     conn = get_conn()

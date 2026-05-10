@@ -3,7 +3,7 @@ from __future__ import annotations
 import json
 from datetime import datetime, timezone
 
-from app.core.db import ensure_db, get_conn
+from app.core.db import run_migrations, get_conn
 
 
 def _as_dict(value: object) -> dict:
@@ -118,7 +118,7 @@ def _build_measurement_from_raw(row, payload: dict, created_at: str) -> tuple:
 
 
 def normalize_steps(limit: int = 100, since_id: int = 0) -> dict:
-    ensure_db()
+    run_migrations()
 
     conn, rows = _fetch_raw_events_for_normalization(limit=limit, since_id=since_id)
     target_count = len(rows)
