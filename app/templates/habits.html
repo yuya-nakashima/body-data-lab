@@ -1,0 +1,197 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<title>習慣グループ管理</title>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:-apple-system,BlinkMacSystemFont,'Helvetica Neue',sans-serif;background:#fafaf9;color:#1a1a18;padding:calc(20px + env(safe-area-inset-top)) 16px 48px;min-height:100vh}
+.app{max-width:660px;margin:0 auto}
+.top-nav{display:flex;align-items:center;justify-content:space-between;margin-bottom:24px}
+.nav-title{font-size:15px;font-weight:500}
+.nav-link{font-size:12px;color:#7F77DD;text-decoration:none}
+.add-row{display:flex;gap:8px;margin-bottom:24px}
+.txt-inp{flex:1;padding:10px 12px;font-size:14px;font-family:inherit;border:1px solid #e8e8e5;border-radius:10px;background:#fff;color:#1a1a18;outline:none;transition:border-color .15s}
+.txt-inp:focus{border-color:#7F77DD}
+.btn-add{padding:10px 18px;font-size:13px;font-weight:600;color:#fff;background:#7F77DD;border:none;border-radius:10px;cursor:pointer;white-space:nowrap}
+.btn-add:active{background:#534AB7}
+.btn-add:disabled{background:#c4c0ef;cursor:default}
+.group-card{background:#fff;border:1px solid #e8e8e5;border-radius:12px;margin-bottom:14px;overflow:hidden}
+.group-head{display:flex;align-items:center;justify-content:space-between;padding:12px 14px;border-bottom:1px solid #f0f0ee}
+.group-name-inp{flex:1;border:none;outline:none;font-size:14px;font-weight:500;color:#1a1a18;background:transparent;font-family:inherit}
+.btn-icon{background:none;border:none;cursor:pointer;font-size:13px;color:#bbb;padding:2px 6px;border-radius:6px;transition:color .15s}
+.btn-icon:hover{color:#888;background:#f5f5f3}
+.btn-del{color:#e0a0a0}.btn-del:hover{color:#dc2626;background:#fef2f2}
+.items-area{padding:6px 14px 10px}
+.item-row{display:flex;align-items:center;gap:8px;padding:7px 0;border-bottom:1px solid #f8f8f6}
+.item-row:last-child{border-bottom:none}
+.item-text{flex:1;font-size:13px;color:#444}
+.item-add-row{display:flex;gap:8px;margin-top:8px}
+.item-txt-inp{flex:1;padding:7px 10px;font-size:13px;font-family:inherit;border:1px solid #e8e8e5;border-radius:8px;background:#fafaf9;color:#1a1a18;outline:none}
+.item-txt-inp:focus{border-color:#7F77DD}
+.btn-sm{padding:7px 14px;font-size:12px;font-weight:600;color:#fff;background:#7F77DD;border:none;border-radius:8px;cursor:pointer}
+.btn-sm:disabled{background:#c4c0ef;cursor:default}
+.woop-section{padding:8px 14px 12px;border-top:1px solid #f0f0ee;background:#faf9f7}
+.woop-toggle{font-size:11px;color:#BA7517;cursor:pointer;font-weight:500;background:none;border:none;font-family:inherit;padding:0;margin-bottom:6px}
+.woop-fields{display:none;flex-direction:column;gap:6px}
+.woop-fields.open{display:flex}
+.woop-row{display:flex;gap:6px;align-items:center}
+.woop-key{font-size:10px;font-weight:500;color:#BA7517;min-width:14px}
+.woop-inp{flex:1;border:none;border-bottom:1px solid #e8e8e5;outline:none;font-size:12px;color:#555;background:transparent;font-family:inherit;padding:2px 0}
+.woop-inp::placeholder{color:#ccc}
+.woop-save{margin-top:8px;font-size:12px;color:#7F77DD;background:none;border:none;cursor:pointer;font-family:inherit;padding:0}
+.empty-msg{text-align:center;color:#bbb;font-size:13px;padding:32px 0}
+</style>
+</head>
+<body>
+<div class="app">
+  <div class="top-nav">
+    <span class="nav-title">習慣グループ管理</span>
+    <a class="nav-link" href="/ui/reflections">← 振り返りに戻る</a>
+  </div>
+  <div class="add-row">
+    <input class="txt-inp" id="new-group" type="text" placeholder="新しいグループ名（例：朝の習慣）">
+    <button class="btn-add" onclick="addGroup()">追加</button>
+  </div>
+  <div id="groupList"></div>
+</div>
+
+<script>
+function escHtml(s){ return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
+
+async function load(){
+  const res = await fetch('/habit-groups');
+  const data = await res.json();
+  render(data.groups || []);
+}
+
+function render(groups){
+  const el = document.getElementById('groupList');
+  el.innerHTML = '';
+  if(groups.length === 0){
+    el.innerHTML = '<div class="empty-msg">グループがありません。上から追加してください。</div>';
+    return;
+  }
+  groups.forEach(g => el.appendChild(buildCard(g)));
+}
+
+function buildCard(group){
+  const card = document.createElement('div');
+  card.className = 'group-card';
+  card.dataset.id = group.id;
+  const itemsHtml = group.items.map(item => `
+    <div class="item-row" data-item-id="${item.id}">
+      <span class="item-text">${escHtml(item.content)}</span>
+      <button class="btn-icon btn-del" onclick="deleteItem(${item.id}, this)">✕</button>
+    </div>`).join('') || '';
+  const hasWoop = group.woop_wish || group.woop_outcome || group.woop_obstacle || group.woop_plan;
+  card.innerHTML = `
+    <div class="group-head">
+      <input class="group-name-inp" value="${escHtml(group.name)}" onblur="renameGroup(${group.id}, this)">
+      <button class="btn-icon btn-del" onclick="deleteGroup(${group.id}, this)" title="グループ削除">🗑</button>
+    </div>
+    <div class="items-area">
+      ${itemsHtml}
+      <div class="item-add-row">
+        <input class="item-txt-inp" type="text" placeholder="習慣を追加（例：水を200ml飲む）">
+        <button class="btn-sm" onclick="addItem(${group.id}, this)">追加</button>
+      </div>
+    </div>
+    <div class="woop-section">
+      <button class="woop-toggle" onclick="toggleWoop(this)">${hasWoop ? '▼ WOOP を編集' : '▶ WOOP を設定（任意）'}</button>
+      <div class="woop-fields${hasWoop ? ' open' : ''}">
+        <div class="woop-row"><span class="woop-key">W</span><input class="woop-inp" placeholder="Wish — 達成したいこと" value="${escHtml(group.woop_wish||'')}"></div>
+        <div class="woop-row"><span class="woop-key">O</span><input class="woop-inp" placeholder="Outcome — 達成したらどんな感覚？" value="${escHtml(group.woop_outcome||'')}"></div>
+        <div class="woop-row"><span class="woop-key">O</span><input class="woop-inp" placeholder="Obstacle — 邪魔しそうな障害は？" value="${escHtml(group.woop_obstacle||'')}"></div>
+        <div class="woop-row"><span class="woop-key">P</span><input class="woop-inp" placeholder="Plan — もし障害が起きたら？" value="${escHtml(group.woop_plan||'')}"></div>
+        <button class="woop-save" onclick="saveWoop(${group.id}, this)">保存する</button>
+      </div>
+    </div>`;
+  card.querySelector('.item-txt-inp').addEventListener('keydown', e => {
+    if(e.key === 'Enter') card.querySelector('.btn-sm').click();
+  });
+  return card;
+}
+
+function toggleWoop(btn){
+  const fields = btn.nextElementSibling;
+  const open = fields.classList.toggle('open');
+  btn.textContent = open ? '▼ WOOP を編集' : '▶ WOOP を設定（任意）';
+}
+
+async function addGroup(){
+  const inp = document.getElementById('new-group');
+  const name = inp.value.trim();
+  if(!name) return;
+  const res = await fetch('/habit-groups', {
+    method:'POST', headers:{'Content-Type':'application/json'},
+    body: JSON.stringify({name, sort_order: 0})
+  });
+  if(res.ok){ inp.value = ''; load(); }
+}
+
+async function renameGroup(id, inp){
+  const name = inp.value.trim();
+  if(!name){ inp.value = inp.dataset.prev || inp.value; return; }
+  await fetch('/habit-groups/'+id, {
+    method:'PATCH', headers:{'Content-Type':'application/json'},
+    body: JSON.stringify({name})
+  });
+}
+
+async function deleteGroup(id, btn){
+  if(!confirm('グループとすべての習慣を削除しますか？')) return;
+  btn.disabled = true;
+  const res = await fetch('/habit-groups/'+id, {method:'DELETE'});
+  if(res.ok) load();
+  else btn.disabled = false;
+}
+
+async function addItem(groupId, btn){
+  const row = btn.closest('.item-add-row');
+  const inp = row.querySelector('.item-txt-inp');
+  const content = inp.value.trim();
+  if(!content) return;
+  btn.disabled = true;
+  const res = await fetch('/habit-groups/'+groupId+'/items', {
+    method:'POST', headers:{'Content-Type':'application/json'},
+    body: JSON.stringify({content, sort_order: 0})
+  });
+  if(res.ok){ inp.value = ''; load(); }
+  else btn.disabled = false;
+}
+
+async function deleteItem(itemId, btn){
+  btn.disabled = true;
+  const res = await fetch('/habit-groups/items/'+itemId, {method:'DELETE'});
+  if(res.ok) load();
+  else btn.disabled = false;
+}
+
+async function saveWoop(groupId, btn){
+  const section = btn.closest('.woop-fields');
+  const inps = section.querySelectorAll('.woop-inp');
+  const body = {
+    woop_wish: inps[0].value.trim() || null,
+    woop_outcome: inps[1].value.trim() || null,
+    woop_obstacle: inps[2].value.trim() || null,
+    woop_plan: inps[3].value.trim() || null,
+  };
+  btn.disabled = true;
+  const res = await fetch('/habit-groups/'+groupId, {
+    method:'PATCH', headers:{'Content-Type':'application/json'},
+    body: JSON.stringify(body)
+  });
+  btn.disabled = false;
+  if(res.ok){ btn.textContent = '保存しました ✓'; setTimeout(()=>{ btn.textContent = '保存する'; },2000); }
+}
+
+document.getElementById('new-group').addEventListener('keydown', e => {
+  if(e.key === 'Enter') addGroup();
+});
+
+load();
+</script>
+</body>
+</html>

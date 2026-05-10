@@ -1,0 +1,300 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<title>習慣スタック日記</title>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:-apple-system,BlinkMacSystemFont,'Helvetica Neue',sans-serif;background:#fafaf9;color:#1a1a18;padding:calc(16px + env(safe-area-inset-top)) 16px calc(48px + env(safe-area-inset-bottom));min-height:100vh}
+.app{max-width:660px;margin:0 auto}
+.top-nav{display:flex;align-items:center;justify-content:space-between;margin-bottom:20px}
+.nav-title{font-size:15px;font-weight:500}
+.nav-right{display:flex;align-items:center;gap:12px}
+.nav-date{font-size:12px;color:#888}
+.nav-link{font-size:12px;color:#7F77DD;text-decoration:none}
+.tab-row{display:flex;gap:2px;margin-bottom:24px;border-bottom:1px solid #e8e8e5}
+.tab{font-size:13px;padding:7px 16px 10px;color:#999;cursor:pointer;border-bottom:2px solid transparent;margin-bottom:-1px;transition:all .15s}
+.tab.active{color:#1a1a18;font-weight:500;border-bottom-color:#7F77DD}
+.pane{display:none}.pane.active{display:block}
+.sec-label{font-size:10px;font-weight:500;letter-spacing:.08em;color:#aaa;text-transform:uppercase;margin-bottom:12px}
+.chk{width:18px;height:18px;border-radius:5px;border:1px solid #ccc;display:flex;align-items:center;justify-content:center;cursor:pointer;flex-shrink:0;background:#fff;transition:all .15s}
+.chk.done{background:#5DCAA5;border-color:#1D9E75}
+.chk svg{display:none}.chk.done svg{display:block}
+.divider{border:none;border-top:1px solid #f0f0ee;margin:20px 0}
+.streak-wrap{margin-bottom:20px}
+.streak-meta{display:flex;align-items:center;justify-content:space-between;margin-bottom:8px}
+.streak-ttl{font-size:10px;font-weight:500;letter-spacing:.08em;color:#aaa;text-transform:uppercase}
+.streak-count{font-size:12px;font-weight:500;color:#534AB7}
+.streak-bar{display:flex;gap:3px;flex-wrap:wrap}
+.s-dot{width:22px;height:22px;border-radius:4px;border:1px solid #e8e8e5;display:flex;align-items:center;justify-content:center;font-size:8px;color:#bbb;flex-shrink:0}
+.s-dot.hit{background:#E1F5EE;border-color:#9FE1CB;color:#085041}
+.s-dot.today-dot{border:1.5px solid #7F77DD;color:#534AB7;font-weight:500}
+.r-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:10px;margin-bottom:20px}
+.r-card{background:#fff;border:1px solid #e8e8e5;border-radius:12px;padding:14px}
+.r-tag{display:inline-block;font-size:10px;font-weight:500;padding:2px 8px;border-radius:10px;letter-spacing:.05em;margin-bottom:7px}
+.t-habit{background:#EAF3DE;color:#27500A}
+.t-woop{background:#FAEEDA;color:#633806}
+.t-sc{background:#EEEDFE;color:#3C3489}
+.t-free{background:#F1EFE8;color:#444441}
+.r-q{font-size:13px;font-weight:500;color:#1a1a18;margin-bottom:3px;line-height:1.45}
+.r-hint{font-size:11px;color:#aaa;line-height:1.55;margin-bottom:9px}
+textarea{width:100%;border:none;outline:none;font-size:13px;color:#1a1a18;background:transparent;resize:none;font-family:inherit;line-height:1.65}
+textarea::placeholder{color:#ccc}
+.woop-rows{display:flex;flex-direction:column;gap:7px}
+.woop-row{display:flex;gap:7px;align-items:flex-start}
+.woop-key{font-size:10px;font-weight:500;color:#BA7517;min-width:14px;margin-top:3px}
+.woop-inp{flex:1;border:none;border-bottom:1px solid #e8e8e5;outline:none;font-size:12px;color:#555;background:transparent;font-family:inherit;padding:2px 0}
+.woop-inp::placeholder{color:#ccc}
+.save-row{display:flex;justify-content:flex-end}
+button.save{background:transparent;border:1px solid #ccc;border-radius:8px;padding:8px 22px;font-size:13px;color:#777;cursor:pointer;font-family:inherit;transition:all .15s}
+button.save:hover{background:#f5f5f3;color:#1a1a18}
+button.save:disabled{opacity:.5;cursor:default}
+.feedback{margin-top:12px;padding:10px 14px;border-radius:8px;font-size:13px;display:none;text-align:right}
+.feedback.success{background:#f0fdf4;color:#16a34a;border:1px solid #bbf7d0;display:block}
+.feedback.error{background:#fef2f2;color:#dc2626;border:1px solid #fecaca;display:block}
+.sec-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:12px}
+.group-card{background:#fff;border:1px solid #e8e8e5;border-radius:12px;margin-bottom:12px;overflow:hidden}
+.group-header{font-size:13px;font-weight:500;padding:10px 14px;border-bottom:1px solid #f0f0ee;color:#1a1a18}
+.group-items{padding:6px 14px 10px}
+.habit-item{display:flex;align-items:center;gap:10px;padding:7px 0;border-bottom:1px solid #f8f8f6}
+.habit-item:last-child{border-bottom:none}
+.habit-label{font-size:13px;color:#1a1a18;flex:1;line-height:1.4}
+.habit-label.struck{text-decoration:line-through;color:#bbb}
+.empty-items{font-size:12px;color:#bbb;padding:4px 0}
+.group-woop{padding:8px 14px 10px;border-top:1px solid #f0f0ee;background:#faf9f7}
+.group-woop-title{font-size:10px;font-weight:500;letter-spacing:.06em;color:#BA7517;text-transform:uppercase;margin-bottom:6px}
+.no-groups-msg{text-align:center;color:#bbb;font-size:13px;padding:32px 0}
+.no-groups-msg a{color:#7F77DD;text-decoration:none}
+</style>
+</head>
+<body>
+<div class="app">
+  <div class="top-nav">
+    <span class="nav-title">習慣スタック日記</span>
+    <div class="nav-right">
+      <span class="nav-date" id="navDate"></span>
+    </div>
+  </div>
+  <div class="tab-row">
+    <div class="tab active" onclick="sw('today')">習慣スタック</div>
+    <div class="tab" onclick="sw('reflect')">振り返り</div>
+  </div>
+
+  <!-- 習慣スタック -->
+  <div id="pane-today" class="pane active">
+    <div class="sec-header">
+      <span class="sec-label">Habit Stacking</span>
+      <a class="nav-link" href="/ui/habits">グループを管理 →</a>
+    </div>
+    <div id="groupList"></div>
+  </div>
+
+  <!-- 振り返り -->
+  <div id="pane-reflect" class="pane">
+    <div class="streak-wrap">
+      <div class="streak-meta">
+        <span class="streak-ttl">記録（直近14日）</span>
+        <div style="display:flex;align-items:center;gap:12px">
+          <span class="streak-count" id="streakCount"></span>
+          <a href="/ui/reflections/list" style="font-size:13px;color:#7F77DD;text-decoration:none;padding:4px 0">過去の記録 →</a>
+        </div>
+      </div>
+      <div class="streak-bar" id="streakDots"></div>
+    </div>
+    <div class="r-grid">
+      <div class="r-card">
+        <span class="r-tag t-habit">習慣モニタリング</span>
+        <div class="r-q">今日どうだった？</div>
+        <div class="r-hint">記録すること自体が目標達成を促進する。崩れた状況も書くとヒントになる。</div>
+        <textarea id="free_text" rows="3" placeholder="例：朝の時間が取れた。夜は疲れていてスキップしてしまった。"></textarea>
+      </div>
+      <div class="r-card">
+        <span class="r-tag t-woop">WOOP</span>
+        <div class="r-q">目標・障害・if-thenプラン</div>
+        <div class="r-hint">理想だけでなく障害も直視すると達成率が上がる。</div>
+        <div class="woop-rows">
+          <div class="woop-row"><span class="woop-key">W</span><input class="woop-inp" id="woop_wish" type="text" placeholder="Wish — 達成したいこと"></div>
+          <div class="woop-row"><span class="woop-key">O</span><input class="woop-inp" id="woop_outcome" type="text" placeholder="Outcome — 達成したらどんな感覚？"></div>
+          <div class="woop-row"><span class="woop-key">O</span><input class="woop-inp" id="woop_obstacle" type="text" placeholder="Obstacle — 邪魔しそうな障害は？"></div>
+          <div class="woop-row"><span class="woop-key">P</span><input class="woop-inp" id="woop_plan" type="text" placeholder="Plan — もし障害が起きたら？"></div>
+        </div>
+      </div>
+      <div class="r-card">
+        <span class="r-tag t-sc">Self-Concordance</span>
+        <div class="r-q">「やらなきゃ」、本当にやりたい？</div>
+        <div class="r-hint">内発的動機と一致した目標は達成しやすく、満足度も高い。</div>
+        <textarea id="want_to_do" rows="3" placeholder="例：義務感より、体が軽くなる感覚に焦点を当ててみる。"></textarea>
+      </div>
+      <div class="r-card">
+        <span class="r-tag t-free">無意識</span>
+        <div class="r-q">今、無意識が求めていることは？</div>
+        <div class="r-hint">論理より先に、体や感情が欲しがっているものを言語化する。</div>
+        <textarea id="unconscious_desire" rows="3" placeholder="例：静かな時間。誰にも連絡しない夜。"></textarea>
+      </div>
+    </div>
+    <div class="save-row"><button class="save" id="save-btn" onclick="saveReflection()">振り返りを保存</button></div>
+    <div class="feedback" id="feedback"></div>
+  </div>
+</div>
+
+<script>
+let existingId = null;
+let TODAY = '';
+
+function todayJST(){
+  return new Date(Date.now()+9*60*60*1000).toISOString().slice(0,10);
+}
+function nowJST(){
+  const jst=new Date(Date.now()+9*60*60*1000);
+  return jst.toISOString().replace('Z','+09:00').slice(0,19)+'+09:00';
+}
+function v(id){ return document.getElementById(id).value.trim()||null; }
+function set(id,val){ document.getElementById(id).value=val||''; }
+function escHtml(s){ return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
+
+function sw(name){
+  ['today','reflect'].forEach(n=>{
+    document.getElementById('pane-'+n).classList.toggle('active',n===name);
+  });
+  document.querySelectorAll('.tab').forEach((t,i)=>{
+    t.classList.toggle('active',['today','reflect'][i]===name);
+  });
+}
+
+function buildGroupCard(group){
+  const card = document.createElement('div');
+  card.className = 'group-card';
+  const itemsHtml = group.items.length === 0
+    ? '<div class="empty-items">アイテムがありません</div>'
+    : group.items.map(item => `
+      <div class="habit-item">
+        <div class="chk${item.done?' done':''}" onclick="toggleItem(this,${item.id})">
+          <svg width="10" height="10" viewBox="0 0 10 10"><polyline points="1,5 4,8 9,2" fill="none" stroke="white" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        </div>
+        <span class="habit-label${item.done?' struck':''}">${escHtml(item.content)}</span>
+      </div>`).join('');
+  const hasWoop = group.woop_wish || group.woop_outcome || group.woop_obstacle || group.woop_plan;
+  const woopHtml = hasWoop ? `
+    <div class="group-woop">
+      <div class="group-woop-title">WOOP</div>
+      <div class="woop-rows">
+        ${group.woop_wish?`<div class="woop-row"><span class="woop-key">W</span><span style="font-size:12px;color:#555">${escHtml(group.woop_wish)}</span></div>`:''}
+        ${group.woop_outcome?`<div class="woop-row"><span class="woop-key">O</span><span style="font-size:12px;color:#555">${escHtml(group.woop_outcome)}</span></div>`:''}
+        ${group.woop_obstacle?`<div class="woop-row"><span class="woop-key">O</span><span style="font-size:12px;color:#555">${escHtml(group.woop_obstacle)}</span></div>`:''}
+        ${group.woop_plan?`<div class="woop-row"><span class="woop-key">P</span><span style="font-size:12px;color:#555">${escHtml(group.woop_plan)}</span></div>`:''}
+      </div>
+    </div>` : '';
+  card.innerHTML = `
+    <div class="group-header">${escHtml(group.name)}</div>
+    <div class="group-items">${itemsHtml}</div>
+    ${woopHtml}`;
+  return card;
+}
+
+async function toggleItem(chkEl, itemId){
+  const done = !chkEl.classList.contains('done');
+  chkEl.classList.toggle('done', done);
+  const label = chkEl.parentElement.querySelector('.habit-label');
+  if(label) label.classList.toggle('struck', done);
+  await fetch('/habit-groups/items/'+itemId+'/completion?day='+TODAY, {
+    method:'PATCH', headers:{'Content-Type':'application/json'},
+    body:JSON.stringify({done})
+  });
+}
+
+async function loadGroups(){
+  const container = document.getElementById('groupList');
+  try{
+    const r = await fetch('/habit-groups?day='+TODAY);
+    const data = await r.json();
+    const groups = data.groups || [];
+    if(groups.length === 0){
+      container.innerHTML = '<div class="no-groups-msg">習慣グループがありません。<br><a href="/ui/habits">グループを追加する →</a></div>';
+    } else {
+      container.innerHTML = '';
+      groups.forEach(g => container.appendChild(buildGroupCard(g)));
+    }
+  }catch(e){
+    container.innerHTML = '<div class="no-groups-msg">読み込みに失敗しました。</div>';
+  }
+}
+
+function showFeedback(feedbackId, msg, type){
+  const el = document.getElementById(feedbackId);
+  el.textContent=msg; el.className='feedback '+type;
+  setTimeout(()=>{ el.className='feedback'; },3000);
+}
+
+async function saveReflection(){
+  const btn = document.getElementById('save-btn');
+  if(btn) btn.disabled=true;
+  const body={
+    free_text:v('free_text'), woop_wish:v('woop_wish'), woop_outcome:v('woop_outcome'),
+    woop_obstacle:v('woop_obstacle'), woop_plan:v('woop_plan'), want_to_do:v('want_to_do'),
+    unconscious_desire:v('unconscious_desire'),
+  };
+  try {
+    let res;
+    if(existingId){
+      res=await fetch('/reflections/'+existingId,{method:'PATCH',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});
+    } else {
+      const nonEmpty = Object.values(body).some(x=>x!==null);
+      if(!nonEmpty){ showFeedback('feedback','何か入力してから保存してください。','error'); if(btn)btn.disabled=false; return; }
+      res=await fetch('/reflections',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({...body,recorded_at:nowJST()})});
+      if(res.ok){ const d=await res.json(); existingId=d.reflection?.id??null; }
+    }
+    showFeedback('feedback', res.ok?'保存しました。':'保存に失敗しました ('+res.status+')', res.ok?'success':'error');
+  } catch(e){ showFeedback('feedback','通信エラー: '+e.message,'error'); }
+  if(btn) btn.disabled=false;
+}
+
+async function buildStreak(){
+  const days=['日','月','火','水','木','金','土'];
+  const container=document.getElementById('streakDots');
+  const dates=[];
+  for(let i=13;i>=0;i--){
+    const d=new Date(Date.now()+9*60*60*1000); d.setDate(d.getDate()-i);
+    dates.push(d.toISOString().slice(0,10));
+  }
+  let hitSet=new Set();
+  try{ const r=await fetch('/reflections?limit=60'); const d=await r.json(); (d.reflections||[]).forEach(r=>hitSet.add(r.day)); }catch(e){}
+  let hits=0;
+  dates.forEach((date,i)=>{
+    const hit=hitSet.has(date); const isToday=i===13;
+    const d=new Date(date+'T00:00:00+09:00');
+    const dot=document.createElement('div');
+    dot.className='s-dot'+(hit?' hit':'')+(isToday?' today-dot':'');
+    dot.textContent=days[d.getDay()];
+    container.appendChild(dot);
+    if(hit)hits++;
+  });
+  document.getElementById('streakCount').textContent=hits+'/14日 記録';
+}
+
+async function init(){
+  TODAY = todayJST();
+  const d=new Date(TODAY);
+  document.getElementById('navDate').textContent=
+    `${d.getFullYear()} / ${String(d.getMonth()+1).padStart(2,'0')} / ${String(d.getDate()).padStart(2,'0')}`;
+  buildStreak();
+  loadGroups();
+  try{
+    const r=await fetch('/reflections/today');
+    if(!r.ok) return;
+    const data=await r.json();
+    const ref=data.reflection;
+    if(ref){
+      existingId=ref.id;
+      set('free_text',ref.free_text); set('woop_wish',ref.woop_wish);
+      set('woop_outcome',ref.woop_outcome); set('woop_obstacle',ref.woop_obstacle);
+      set('woop_plan',ref.woop_plan); set('want_to_do',ref.want_to_do);
+      set('unconscious_desire',ref.unconscious_desire);
+    }
+  }catch(e){}
+}
+
+init();
+</script>
+</body>
+</html>
