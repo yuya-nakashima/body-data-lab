@@ -66,6 +66,10 @@ button.save:disabled{opacity:.5;cursor:default}
 .group-woop-title{font-size:10px;font-weight:500;letter-spacing:.06em;color:#BA7517;text-transform:uppercase;margin-bottom:6px}
 .no-groups-msg{text-align:center;color:#bbb;font-size:13px;padding:32px 0}
 .no-groups-msg a{color:#7F77DD;text-decoration:none}
+.count-ctrl{display:flex;align-items:center;gap:4px;flex-shrink:0}
+.count-btn{width:22px;height:22px;border:1px solid #e8e8e5;border-radius:5px;background:#fff;cursor:pointer;font-size:15px;display:flex;align-items:center;justify-content:center;color:#555;line-height:1}
+.count-btn:active{background:#f5f5f3}
+.count-num{font-size:12px;font-weight:500;color:#555;min-width:18px;text-align:center}
 </style>
 </head>
 <body>
@@ -173,6 +177,7 @@ function buildGroupCard(group){
           <svg width="10" height="10" viewBox="0 0 10 10"><polyline points="1,5 4,8 9,2" fill="none" stroke="white" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
         </div>
         <span class="habit-label${item.done?' struck':''}">${escHtml(item.content)}</span>
+        ${item.done ? `<div class="count-ctrl"><button class="count-btn" onclick="adjustCount(this,${item.id},-1)">−</button><span class="count-num">${item.count||1}</span><button class="count-btn" onclick="adjustCount(this,${item.id},1)">＋</button></div>` : ''}
       </div>`).join('');
   const hasWoop = group.woop_wish || group.woop_outcome || group.woop_obstacle || group.woop_plan;
   const woopHtml = hasWoop ? `
@@ -195,11 +200,35 @@ function buildGroupCard(group){
 async function toggleItem(chkEl, itemId){
   const done = !chkEl.classList.contains('done');
   chkEl.classList.toggle('done', done);
-  const label = chkEl.parentElement.querySelector('.habit-label');
+  const item = chkEl.closest('.habit-item');
+  const label = item.querySelector('.habit-label');
   if(label) label.classList.toggle('struck', done);
+  let countCtrl = item.querySelector('.count-ctrl');
+  if(done){
+    if(!countCtrl){
+      countCtrl = document.createElement('div');
+      countCtrl.className = 'count-ctrl';
+      countCtrl.innerHTML = `<button class="count-btn" onclick="adjustCount(this,${itemId},-1)">−</button><span class="count-num">1</span><button class="count-btn" onclick="adjustCount(this,${itemId},1)">＋</button>`;
+      item.appendChild(countCtrl);
+    }
+  } else {
+    if(countCtrl) countCtrl.remove();
+  }
   await fetch('/habit-groups/items/'+itemId+'/completion?day='+TODAY, {
     method:'PATCH', headers:{'Content-Type':'application/json'},
-    body:JSON.stringify({done})
+    body:JSON.stringify({done, count: done ? 1 : 0})
+  });
+}
+
+async function adjustCount(btn, itemId, delta){
+  const ctrl = btn.closest('.count-ctrl');
+  const numEl = ctrl.querySelector('.count-num');
+  let count = parseInt(numEl.textContent) + delta;
+  if(count < 1) count = 1;
+  numEl.textContent = count;
+  await fetch('/habit-groups/items/'+itemId+'/completion?day='+TODAY, {
+    method:'PATCH', headers:{'Content-Type':'application/json'},
+    body:JSON.stringify({done: true, count})
   });
 }
 

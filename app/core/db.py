@@ -17,6 +17,13 @@ def _table_columns(conn: sqlite3.Connection, table_name: str) -> set[str]:
     return {row["name"] for row in rows}
 
 
+def _ensure_habit_completions_columns(conn: sqlite3.Connection) -> None:
+    columns = _table_columns(conn, "habit_completions")
+    if "count" not in columns:
+        conn.execute("ALTER TABLE habit_completions ADD COLUMN count INTEGER NOT NULL DEFAULT 0;")
+        conn.execute("UPDATE habit_completions SET count = 1 WHERE done = 1;")
+
+
 def _ensure_reflections_columns(conn: sqlite3.Connection) -> None:
     columns = _table_columns(conn, "reflections")
     new_cols = [
@@ -240,6 +247,7 @@ def ensure_db() -> None:
     conn.execute(
         "CREATE INDEX IF NOT EXISTS idx_habit_completions_day ON habit_completions(day);"
     )
+    _ensure_habit_completions_columns(conn)
 
     conn.execute(
         """

@@ -34,6 +34,7 @@ class ItemIn(BaseModel):
 
 class CompletionPatch(BaseModel):
     done: bool
+    count: int = 1
 
 
 def _group_with_items(conn, group_id: int, day: Optional[str] = None) -> Optional[dict]:
@@ -49,10 +50,11 @@ def _group_with_items(conn, group_id: int, day: Optional[str] = None) -> Optiona
         d = dict(item)
         if day:
             comp = conn.execute(
-                "SELECT done FROM habit_completions WHERE item_id = ? AND day = ?",
+                "SELECT done, count FROM habit_completions WHERE item_id = ? AND day = ?",
                 (item["id"], day),
             ).fetchone()
             d["done"] = bool(comp["done"]) if comp else False
+            d["count"] = comp["count"] if comp else 0
         item_list.append(d)
     return {**dict(row), "items": item_list}
 
@@ -155,13 +157,14 @@ def patch_completion(item_id: int, body: CompletionPatch, day: str = ""):
     if not day:
         raise HTTPException(status_code=400, detail="day is required")
     conn = get_conn()
+    count = body.count if body.done else 0
     conn.execute(
         """
-        INSERT INTO habit_completions (item_id, day, done)
-        VALUES (?, ?, ?)
-        ON CONFLICT(item_id, day) DO UPDATE SET done = excluded.done
+        INSERT INTO habit_completions (item_id, day, done, count)
+        VALUES (?, ?, ?, ?)
+        ON CONFLICT(item_id, day) DO UPDATE SET done = excluded.done, count = excluded.count
         """,
-        (item_id, day, 1 if body.done else 0),
+        (item_id, day, 1 if body.done else 0, count),
     )
     conn.commit()
     conn.close()
