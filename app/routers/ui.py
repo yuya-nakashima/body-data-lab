@@ -109,7 +109,6 @@ button.save:disabled{opacity:.5;cursor:default}
     <span class="nav-title">習慣スタック日記</span>
     <div class="nav-right">
       <span class="nav-date" id="navDate"></span>
-      <a class="nav-link" href="/ui/reflections/list">過去の記録 →</a>
     </div>
   </div>
   <div class="tab-row">
@@ -139,7 +138,10 @@ button.save:disabled{opacity:.5;cursor:default}
     <div class="streak-wrap">
       <div class="streak-meta">
         <span class="streak-ttl">記録（直近14日）</span>
-        <span class="streak-count" id="streakCount"></span>
+        <div style="display:flex;align-items:center;gap:12px">
+          <span class="streak-count" id="streakCount"></span>
+          <a href="/ui/reflections/list" style="font-size:13px;color:#7F77DD;text-decoration:none;padding:4px 0">過去の記録 →</a>
+        </div>
       </div>
       <div class="streak-bar" id="streakDots"></div>
     </div>
