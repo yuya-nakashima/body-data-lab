@@ -117,6 +117,87 @@ def _build_measurement_from_raw(row, payload: dict, created_at: str) -> tuple:
     )
 
 
+HEALTH_METRICS = frozenset({
+    "heart_rate_resting",
+    "hrv_rmssd",
+    "spo2",
+    "sleep_duration",
+    "sleep_deep",
+    "sleep_rem",
+    "sleep_light",
+    "active_calories",
+    "total_calories",
+})
+
+
+def normalize_health_metrics(limit: int = 200, since_id: int = 0) -> dict:
+    run_migrations()
+    conn = get_conn()
+    placeholders = ",".join("?" * len(HEALTH_METRICS))
+    rows = conn.execute(
+        f"""
+        SELECT id, received_at, source, metric, payload_json
+        FROM raw_events
+        WHERE id > ?
+          AND COALESCE(source, '') = 'health_connect'
+          AND metric IN ({placeholders})
+        ORDER BY id ASC
+        LIMIT ?
+        """,
+        (since_id, *sorted(HEALTH_METRICS), limit),
+    ).fetchall()
+
+    inserted_count = 0
+    skipped_count = 0
+    parse_error_count = 0
+    created_at = datetime.now(timezone.utc).isoformat()
+
+    for row in rows:
+        try:
+            payload = json.loads(row["payload_json"])
+        except Exception:
+            parse_error_count += 1
+            continue
+
+        source_type, source_detail = _classify_source(payload)
+        cur = conn.execute(
+            """
+            INSERT OR IGNORE INTO measurements
+              (raw_event_id, source, source_type, source_detail, metric,
+               ts_start, ts_end, value, unit, quality_flag, created_at)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 0, ?)
+            """,
+            (
+                row["id"],
+                payload.get("source") or row["source"] or "unknown",
+                source_type,
+                source_detail,
+                row["metric"],
+                payload.get("start_at"),
+                payload.get("end_at"),
+                payload.get("value"),
+                payload.get("unit"),
+                created_at,
+            ),
+        )
+        if cur.rowcount == 1:
+            inserted_count += 1
+        else:
+            skipped_count += 1
+
+    try:
+        conn.commit()
+    finally:
+        conn.close()
+
+    return {
+        "ok": True,
+        "inserted_count": inserted_count,
+        "skipped_count": skipped_count,
+        "parse_error_count": parse_error_count,
+    }
+
+
 def normalize_steps(limit: int = 100, since_id: int = 0) -> dict:
     run_migrations()
 

@@ -10,7 +10,7 @@ from fastapi.responses import JSONResponse
 from app.core.config import API_KEY
 from app.core.db import run_migrations, get_conn, stable_hash
 from app.services.aggregate_service import aggregate_daily_metrics
-from app.services.normalize_service import normalize_steps
+from app.services.normalize_service import normalize_steps, normalize_health_metrics, HEALTH_METRICS
 
 router = APIRouter(tags=["ingest"])
 
@@ -54,15 +54,24 @@ def ingest(payload: dict = Body(...), x_api_key: str | None = Header(default=Non
     finally:
         conn.close()
 
-    try:
-        normalize_result = normalize_steps(since_id=raw_id - 1)
-    except Exception as exc:
-        normalize_result = {"ok": False, "error": str(exc)}
-
-    try:
-        aggregate_result = aggregate_daily_metrics()
-    except Exception as exc:
-        aggregate_result = {"ok": False, "error": str(exc)}
+    if metric in HEALTH_METRICS:
+        try:
+            normalize_result = normalize_health_metrics(since_id=raw_id - 1)
+        except Exception as exc:
+            normalize_result = {"ok": False, "error": str(exc)}
+        try:
+            aggregate_result = aggregate_daily_metrics(metric=metric)
+        except Exception as exc:
+            aggregate_result = {"ok": False, "error": str(exc)}
+    else:
+        try:
+            normalize_result = normalize_steps(since_id=raw_id - 1)
+        except Exception as exc:
+            normalize_result = {"ok": False, "error": str(exc)}
+        try:
+            aggregate_result = aggregate_daily_metrics()
+        except Exception as exc:
+            aggregate_result = {"ok": False, "error": str(exc)}
 
     return {
         "ok": True,
