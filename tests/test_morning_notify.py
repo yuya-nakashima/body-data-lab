@@ -1,0 +1,251 @@
+from __future__ import annotations
+
+from datetime import datetime, timezone, timedelta
+from unittest.mock import MagicMock, call, patch
+
+import pytest
+
+from etl.morning_notify import (
+    build_habits_section,
+    build_wish_list_section,
+    main,
+)
+
+JST = timezone(timedelta(hours=9))
+
+
+# ---------------------------------------------------------------------------
+# build_habits_section
+# ---------------------------------------------------------------------------
+
+class TestBuildHabitsSection:
+    def test_empty_groups(self):
+        assert build_habits_section([]) == ""
+
+    def test_checked_and_unchecked(self):
+        groups = [
+            {
+                "name": "健康",
+                "items": [
+                    {"content": "朝のストレッチ", "done": 1},
+                    {"content": "水2L", "done": 0},
+                ],
+            }
+        ]
+        result = build_habits_section(groups)
+        assert "【今日の習慣チェック】" in result
+        assert "▷ 健康" in result
+        assert "✓ 朝のストレッチ" in result
+        assert "・ 水2L" in result
+
+    def test_all_checked(self):
+        groups = [
+            {
+                "name": "朝ルーティン",
+                "items": [
+                    {"content": "瞑想", "done": 1},
+                    {"content": "日記", "done": 1},
+                ],
+            }
+        ]
+        result = build_habits_section(groups)
+        assert result.count("✓") == 2
+        assert "・" not in result
+
+    def test_group_with_no_items(self):
+        groups = [{"name": "空グループ", "items": []}]
+        result = build_habits_section(groups)
+        assert "▷ 空グループ" in result
+        assert "（項目なし）" in result
+
+    def test_multiple_groups(self):
+        groups = [
+            {"name": "グループA", "items": [{"content": "A1", "done": 1}]},
+            {"name": "グループB", "items": [{"content": "B1", "done": 0}]},
+        ]
+        result = build_habits_section(groups)
+        assert "▷ グループA" in result
+        assert "▷ グループB" in result
+        assert "✓ A1" in result
+        assert "・ B1" in result
+
+
+# ---------------------------------------------------------------------------
+# build_wish_list_section (smoke test — already existed before this change)
+# ---------------------------------------------------------------------------
+
+class TestBuildWishListSection:
+    def test_empty(self):
+        assert build_wish_list_section([]) == ""
+
+    def test_renders_items(self):
+        categories = [{"name": "旅行", "items": ["京都", "沖縄"]}]
+        result = build_wish_list_section(categories)
+        assert "【やりたいことリスト】" in result
+        assert "▷ 旅行" in result
+        assert "・京都" in result
+        assert "・沖縄" in result
+
+    def test_empty_category_shows_placeholder(self):
+        categories = [{"name": "未定", "items": []}]
+        result = build_wish_list_section(categories)
+        assert "（なし）" in result
+
+
+# ---------------------------------------------------------------------------
+# main() — LINE + mail both called with same message
+# ---------------------------------------------------------------------------
+
+SAMPLE_REFLECTION = {
+    "day": "2026-05-13",
+    "want_to_do": "読書",
+    "anxiety": "",
+    "unconscious_desire": "",
+    "free_text": "良い一日だった",
+}
+
+SAMPLE_HABITS = [
+    {
+        "name": "健康",
+        "items": [
+            {"content": "ストレッチ", "done": 1},
+            {"content": "散歩", "done": 0},
+        ],
+    }
+]
+
+SAMPLE_WISHES = [{"name": "旅行", "items": ["京都"]}]
+
+
+@pytest.fixture()
+def mock_db(monkeypatch):
+    monkeypatch.setattr("etl.morning_notify.fetch_reflection", lambda d: SAMPLE_REFLECTION)
+    monkeypatch.setattr("etl.morning_notify.fetch_habits", lambda d: SAMPLE_HABITS)
+    monkeypatch.setattr("etl.morning_notify.fetch_wish_list", lambda: SAMPLE_WISHES)
+
+
+class TestMain:
+    def test_sends_line_and_mail_with_same_message(self, mock_db):
+        with patch("etl.morning_notify.send_line") as mock_line, \
+             patch("etl.morning_notify.send_mail") as mock_mail:
+            main()
+
+        mock_line.assert_called_once()
+        mock_mail.assert_called_once()
+
+        line_msg = mock_line.call_args[0][0]
+        mail_body = mock_mail.call_args[1]["body"]
+        assert line_msg == mail_body
+
+    def test_mail_subject_contains_yesterday(self, mock_db):
+        with patch("etl.morning_notify.send_line"), \
+             patch("etl.morning_notify.send_mail") as mock_mail:
+            main()
+
+        subject = mock_mail.call_args[1]["subject"]
+        assert subject.startswith("[Body Data Lab] 振り返り ")
+
+    def test_message_contains_reflection(self, mock_db):
+        with patch("etl.morning_notify.send_line") as mock_line, \
+             patch("etl.morning_notify.send_mail"):
+            main()
+
+        msg = mock_line.call_args[0][0]
+        assert "振り返り" in msg
+        assert "読書" in msg
+        assert "良い一日だった" in msg
+
+    def test_message_contains_habits(self, mock_db):
+        with patch("etl.morning_notify.send_line") as mock_line, \
+             patch("etl.morning_notify.send_mail"):
+            main()
+
+        msg = mock_line.call_args[0][0]
+        assert "今日の習慣チェック" in msg
+        assert "✓ ストレッチ" in msg
+        assert "・ 散歩" in msg
+
+    def test_message_contains_wish_list(self, mock_db):
+        with patch("etl.morning_notify.send_line") as mock_line, \
+             patch("etl.morning_notify.send_mail"):
+            main()
+
+        msg = mock_line.call_args[0][0]
+        assert "やりたいことリスト" in msg
+        assert "京都" in msg
+
+    def test_no_habits_omits_section(self, monkeypatch):
+        monkeypatch.setattr("etl.morning_notify.fetch_reflection", lambda d: SAMPLE_REFLECTION)
+        monkeypatch.setattr("etl.morning_notify.fetch_habits", lambda d: [])
+        monkeypatch.setattr("etl.morning_notify.fetch_wish_list", lambda: SAMPLE_WISHES)
+
+        with patch("etl.morning_notify.send_line") as mock_line, \
+             patch("etl.morning_notify.send_mail"):
+            main()
+
+        msg = mock_line.call_args[0][0]
+        assert "今日の習慣チェック" not in msg
+
+    def test_no_wish_list_omits_section(self, monkeypatch):
+        monkeypatch.setattr("etl.morning_notify.fetch_reflection", lambda d: SAMPLE_REFLECTION)
+        monkeypatch.setattr("etl.morning_notify.fetch_habits", lambda d: SAMPLE_HABITS)
+        monkeypatch.setattr("etl.morning_notify.fetch_wish_list", lambda: [])
+
+        with patch("etl.morning_notify.send_line") as mock_line, \
+             patch("etl.morning_notify.send_mail"):
+            main()
+
+        msg = mock_line.call_args[0][0]
+        assert "やりたいことリスト" not in msg
+
+    def test_line_failure_does_not_suppress_exception(self, mock_db):
+        with patch("etl.morning_notify.send_line", side_effect=RuntimeError("LINE down")), \
+             patch("etl.morning_notify.send_mail") as mock_mail:
+            with pytest.raises(RuntimeError, match="LINE down"):
+                main()
+
+        mock_mail.assert_not_called()
+
+    def test_mail_failure_does_not_suppress_exception(self, mock_db):
+        with patch("etl.morning_notify.send_line"), \
+             patch("etl.morning_notify.send_mail", side_effect=RuntimeError("SMTP down")):
+            with pytest.raises(RuntimeError, match="SMTP down"):
+                main()
+
+    def test_uses_jst_date_not_utc(self, monkeypatch):
+        # UTC 15:30 = JST 翌日 00:30。UTC基準だと yesterday/today がずれる。
+        # JST基準なら正しく JST 日付が使われることを確認する。
+        jst_now = datetime(2026, 5, 14, 0, 30, tzinfo=JST)  # JST 2026-05-14 00:30
+        monkeypatch.setattr("etl.morning_notify.datetime", _MockDatetime(jst_now))
+
+        captured = {}
+
+        def fake_fetch_reflection(d):
+            captured["yesterday"] = d
+            return SAMPLE_REFLECTION
+
+        def fake_fetch_habits(d):
+            captured["today"] = d
+            return []
+
+        monkeypatch.setattr("etl.morning_notify.fetch_reflection", fake_fetch_reflection)
+        monkeypatch.setattr("etl.morning_notify.fetch_habits", fake_fetch_habits)
+        monkeypatch.setattr("etl.morning_notify.fetch_wish_list", lambda: [])
+
+        with patch("etl.morning_notify.send_line"), patch("etl.morning_notify.send_mail"):
+            main()
+
+        assert captured["yesterday"] == "2026-05-13"
+        assert captured["today"] == "2026-05-14"
+
+
+class _MockDatetime:
+    """datetime.now(tz) を差し替えるための最小スタブ。"""
+
+    def __init__(self, fixed: datetime):
+        self._fixed = fixed
+
+    def now(self, tz=None):
+        if tz is not None:
+            return self._fixed.astimezone(tz)
+        return self._fixed

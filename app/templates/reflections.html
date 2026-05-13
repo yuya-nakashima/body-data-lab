@@ -303,6 +303,7 @@ async function loadWishes(){
   const container = document.getElementById('wishList');
   try{
     const r = await fetch('/wishes/categories');
+    if(!r.ok) throw new Error('status '+r.status);
     const data = await r.json();
     const categories = data.categories || [];
     if(categories.length === 0){
@@ -312,9 +313,11 @@ async function loadWishes(){
     container.innerHTML = categories.map(cat => `
       <div class="wish-category">
         <div class="wish-cat-name">${escHtml(cat.name)}</div>
-        ${(cat.items||[]).map(item => `<div class="wish-item">${escHtml(item.content)}</div>`).join('')}
+        ${(cat.items||[]).length === 0 ? '<div class="empty-cat">アイテムなし</div>' : (cat.items||[]).map(item => `<div class="wish-item">${escHtml(item.content)}</div>`).join('')}
       </div>`).join('');
-  }catch(e){}
+  }catch(e){
+    container.innerHTML = '<div class="no-groups-msg">読み込みに失敗しました。</div>';
+  }
 }
 
 init();

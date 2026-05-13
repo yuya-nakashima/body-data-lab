@@ -3,7 +3,7 @@ from __future__ import annotations
 import logging
 import os
 import sys
-from datetime import date, timedelta
+from datetime import date, datetime, timedelta
 from pathlib import Path
 
 ROOT_DIR = Path(__file__).resolve().parent.parent
@@ -30,6 +30,7 @@ load_env_file(ROOT_DIR / ".env")
 from app.core.db import get_conn
 from app.core.timeutil import JST
 from app.services.line_notifier import build_reflection_message, send_line
+from etl.notifier import send_mail
 
 
 def fetch_wish_list() -> list[dict]:
@@ -46,6 +47,43 @@ def fetch_wish_list() -> list[dict]:
         result.append({"name": cat["name"], "items": [row["content"] for row in items]})
     conn.close()
     return result
+
+
+def fetch_habits(target_date: str) -> list[dict]:
+    conn = get_conn()
+    groups = conn.execute(
+        "SELECT * FROM habit_groups ORDER BY sort_order, id"
+    ).fetchall()
+    result = []
+    for group in groups:
+        items = conn.execute(
+            """
+            SELECT i.content, COALESCE(c.done, 0) AS done
+            FROM habit_group_items i
+            LEFT JOIN habit_completions c ON c.item_id = i.id AND c.day = ?
+            WHERE i.group_id = ?
+            ORDER BY i.sort_order, i.id
+            """,
+            (target_date, group["id"]),
+        ).fetchall()
+        result.append({"name": group["name"], "items": [dict(r) for r in items]})
+    conn.close()
+    return result
+
+
+def build_habits_section(groups: list[dict]) -> str:
+    if not groups:
+        return ""
+    lines = ["\n【今日の習慣チェック】"]
+    for group in groups:
+        lines.append(f"\n▷ {group['name']}")
+        if not group["items"]:
+            lines.append("  （項目なし）")
+            continue
+        for item in group["items"]:
+            mark = "✓" if item["done"] else "・"
+            lines.append(f"  {mark} {item['content']}")
+    return "\n".join(lines)
 
 
 def build_wish_list_section(categories: list[dict]) -> str:
@@ -76,19 +114,27 @@ def fetch_reflection(target_date: str) -> dict | None:
 def main() -> None:
     logging.basicConfig(level=logging.INFO)
 
-    yesterday = (date.today() - timedelta(days=1)).isoformat()
+    jst_today = datetime.now(JST).date()
+    yesterday = (jst_today - timedelta(days=1)).isoformat()
     logger.info("Fetching reflection for %s", yesterday)
+
+    today = jst_today.isoformat()
 
     try:
         reflection = fetch_reflection(yesterday)
         message = build_reflection_message(reflection, yesterday)
+        habits_section = build_habits_section(fetch_habits(today))
+        if habits_section:
+            message = message + "\n" + habits_section
         wish_section = build_wish_list_section(fetch_wish_list())
         if wish_section:
             message = message + "\n" + wish_section
         send_line(message)
         logger.info("LINE notification sent for %s", yesterday)
+        send_mail(subject=f"[Body Data Lab] 振り返り {yesterday}", body=message)
+        logger.info("Mail notification sent for %s", yesterday)
     except Exception:
-        logger.exception("Failed to send morning LINE notification")
+        logger.exception("Failed to send morning notification")
         raise
 
 
