@@ -62,6 +62,10 @@ button.save:disabled{opacity:.5;cursor:default}
 .feedback{margin-top:12px;padding:10px 14px;border-radius:8px;font-size:13px;display:none;text-align:right}
 .feedback.success{background:#f0fdf4;color:#16a34a;border:1px solid #bbf7d0;display:block}
 .feedback.error{background:#fef2f2;color:#dc2626;border:1px solid #fecaca;display:block}
+.wish-category{margin-bottom:14px}
+.wish-cat-name{font-size:11px;font-weight:600;color:#aaa;letter-spacing:.08em;text-transform:uppercase;margin-bottom:6px}
+.wish-item{font-size:13px;color:#374151;padding:5px 0;border-bottom:1px solid #f5f5f3}
+.wish-item:last-child{border-bottom:none}
 </style>
 </head>
 <body>
@@ -113,6 +117,15 @@ button.save:disabled{opacity:.5;cursor:default}
   </div>
   <div class="save-row"><button class="save" id="save-btn" onclick="saveReflection()">振り返りを保存</button></div>
   <div class="feedback" id="feedback"></div>
+
+  <div class="divider"></div>
+
+  <!-- やりたいことリスト -->
+  <div class="sec-header">
+    <span class="sec-label">Wish List</span>
+    <a class="nav-link" href="/ui/wishes">編集 →</a>
+  </div>
+  <div id="wishList"></div>
 </div>
 
 <script>
@@ -286,7 +299,26 @@ async function init(){
   }catch(e){}
 }
 
+async function loadWishes(){
+  const container = document.getElementById('wishList');
+  try{
+    const r = await fetch('/wishes/categories');
+    const data = await r.json();
+    const categories = data.categories || [];
+    if(categories.length === 0){
+      container.innerHTML = '<div class="no-groups-msg"><a href="/ui/wishes">やりたいことを追加する →</a></div>';
+      return;
+    }
+    container.innerHTML = categories.map(cat => `
+      <div class="wish-category">
+        <div class="wish-cat-name">${escHtml(cat.name)}</div>
+        ${(cat.items||[]).map(item => `<div class="wish-item">${escHtml(item.content)}</div>`).join('')}
+      </div>`).join('');
+  }catch(e){}
+}
+
 init();
+loadWishes();
 </script>
 </body>
 </html>
