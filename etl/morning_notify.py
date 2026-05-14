@@ -58,7 +58,7 @@ def fetch_habits(target_date: str) -> list[dict]:
     for group in groups:
         items = conn.execute(
             """
-            SELECT i.content, COALESCE(c.done, 0) AS done
+            SELECT i.content, COALESCE(c.done, 0) AS done, COALESCE(c.count, 0) AS count
             FROM habit_group_items i
             LEFT JOIN habit_completions c ON c.item_id = i.id AND c.day = ?
             WHERE i.group_id = ?
@@ -72,18 +72,19 @@ def fetch_habits(target_date: str) -> list[dict]:
 
 
 def build_habits_section(groups: list[dict]) -> str:
-    if not groups:
-        return ""
-    lines = ["\n【今日の習慣チェック】"]
+    lines = []
     for group in groups:
-        lines.append(f"\n▷ {group['name']}")
-        if not group["items"]:
-            lines.append("  （項目なし）")
+        done_items = [i for i in group["items"] if i["done"]]
+        if not done_items:
             continue
-        for item in group["items"]:
-            mark = "✓" if item["done"] else "・"
-            lines.append(f"  {mark} {item['content']}")
-    return "\n".join(lines)
+        lines.append(f"\n▷ {group['name']}")
+        for item in done_items:
+            count = item.get("count", 1)
+            suffix = f" × {count}" if count > 1 else ""
+            lines.append(f"  ✓ {item['content']}{suffix}")
+    if not lines:
+        return ""
+    return "【今日の習慣チェック】" + "\n".join(lines)
 
 
 def build_wish_list_section(categories: list[dict]) -> str:
@@ -121,14 +122,12 @@ def main() -> None:
     today = jst_today.isoformat()
 
     try:
-        reflection = fetch_reflection(yesterday)
-        message = build_reflection_message(reflection, yesterday)
         habits_section = build_habits_section(fetch_habits(today))
-        if habits_section:
-            message = message + "\n" + habits_section
+        reflection_section = build_reflection_message(fetch_reflection(yesterday), yesterday)
         wish_section = build_wish_list_section(fetch_wish_list())
-        if wish_section:
-            message = message + "\n" + wish_section
+
+        parts = [habits_section, reflection_section, wish_section]
+        message = "\n".join(p for p in parts if p)
         send_line(message)
         logger.info("LINE notification sent for %s", yesterday)
         send_mail(subject=f"[Body Data Lab] 振り返り {yesterday}", body=message)

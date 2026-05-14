@@ -22,52 +22,54 @@ class TestBuildHabitsSection:
     def test_empty_groups(self):
         assert build_habits_section([]) == ""
 
-    def test_checked_and_unchecked(self):
+    def test_unchecked_only_returns_empty(self):
+        groups = [
+            {"name": "健康", "items": [{"content": "水2L", "done": 0, "count": 0}]}
+        ]
+        assert build_habits_section(groups) == ""
+
+    def test_checked_shown_unchecked_omitted(self):
         groups = [
             {
                 "name": "健康",
                 "items": [
-                    {"content": "朝のストレッチ", "done": 1},
-                    {"content": "水2L", "done": 0},
+                    {"content": "朝のストレッチ", "done": 1, "count": 1},
+                    {"content": "水2L", "done": 0, "count": 0},
                 ],
             }
         ]
         result = build_habits_section(groups)
         assert "【今日の習慣チェック】" in result
-        assert "▷ 健康" in result
         assert "✓ 朝のストレッチ" in result
-        assert "・ 水2L" in result
+        assert "水2L" not in result
 
-    def test_all_checked(self):
+    def test_count_shown_when_greater_than_1(self):
         groups = [
-            {
-                "name": "朝ルーティン",
-                "items": [
-                    {"content": "瞑想", "done": 1},
-                    {"content": "日記", "done": 1},
-                ],
-            }
+            {"name": "運動", "items": [{"content": "腕立て", "done": 1, "count": 3}]}
         ]
         result = build_habits_section(groups)
-        assert result.count("✓") == 2
-        assert "・" not in result
+        assert "✓ 腕立て × 3" in result
 
-    def test_group_with_no_items(self):
-        groups = [{"name": "空グループ", "items": []}]
-        result = build_habits_section(groups)
-        assert "▷ 空グループ" in result
-        assert "（項目なし）" in result
-
-    def test_multiple_groups(self):
+    def test_count_not_shown_when_1(self):
         groups = [
-            {"name": "グループA", "items": [{"content": "A1", "done": 1}]},
-            {"name": "グループB", "items": [{"content": "B1", "done": 0}]},
+            {"name": "運動", "items": [{"content": "腕立て", "done": 1, "count": 1}]}
+        ]
+        result = build_habits_section(groups)
+        assert "× 1" not in result
+        assert "✓ 腕立て" in result
+
+    def test_group_with_no_done_items_omitted(self):
+        groups = [{"name": "空グループ", "items": []}]
+        assert build_habits_section(groups) == ""
+
+    def test_only_done_groups_shown(self):
+        groups = [
+            {"name": "グループA", "items": [{"content": "A1", "done": 1, "count": 1}]},
+            {"name": "グループB", "items": [{"content": "B1", "done": 0, "count": 0}]},
         ]
         result = build_habits_section(groups)
         assert "▷ グループA" in result
-        assert "▷ グループB" in result
-        assert "✓ A1" in result
-        assert "・ B1" in result
+        assert "グループB" not in result
 
 
 # ---------------------------------------------------------------------------
@@ -108,8 +110,8 @@ SAMPLE_HABITS = [
     {
         "name": "健康",
         "items": [
-            {"content": "ストレッチ", "done": 1},
-            {"content": "散歩", "done": 0},
+            {"content": "ストレッチ", "done": 1, "count": 1},
+            {"content": "散歩", "done": 0, "count": 0},
         ],
     }
 ]
@@ -125,6 +127,17 @@ def mock_db(monkeypatch):
 
 
 class TestMain:
+    def test_section_order(self, mock_db):
+        with patch("etl.morning_notify.send_line") as mock_line, \
+             patch("etl.morning_notify.send_mail"):
+            main()
+
+        msg = mock_line.call_args[0][0]
+        pos_habits = msg.index("今日の習慣チェック")
+        pos_reflection = msg.index("振り返り")
+        pos_wishes = msg.index("やりたいことリスト")
+        assert pos_habits < pos_reflection < pos_wishes
+
     def test_sends_line_and_mail_with_same_message(self, mock_db):
         with patch("etl.morning_notify.send_line") as mock_line, \
              patch("etl.morning_notify.send_mail") as mock_mail:
@@ -163,7 +176,7 @@ class TestMain:
         msg = mock_line.call_args[0][0]
         assert "今日の習慣チェック" in msg
         assert "✓ ストレッチ" in msg
-        assert "・ 散歩" in msg
+        assert "散歩" not in msg
 
     def test_message_contains_wish_list(self, mock_db):
         with patch("etl.morning_notify.send_line") as mock_line, \

@@ -42,10 +42,10 @@ def build_reflection_message(reflection: dict | None, date: str) -> str:
         return f"【振り返り {date}】\n記録がありません。"
 
     field_labels = [
+        ("free_text", "今日どうだった？"),
         ("want_to_do", "やりたいこと"),
         ("anxiety", "不安なこと"),
-        ("unconscious_desire", "無意識が求めること"),
-        ("free_text", "自由記述"),
+        ("unconscious_desire", "今、無意識が求めていることは？"),
     ]
 
     lines = [f"【振り返り {date}】"]
