@@ -110,7 +110,7 @@ class TestBuildDailyGoalsSection:
     def test_done_goal_shown(self):
         goals = [{"content": "ブログを書く", "done": 1, "count": 1}]
         result = build_daily_goals_section(goals)
-        assert "【今日のゴール】" in result
+        assert "【今日の目標】" in result
         assert "✓ ブログを書く" in result
 
     def test_undone_goal_omitted(self):
@@ -179,7 +179,7 @@ class TestMain:
             main()
 
         msg = mock_line.call_args[0][0]
-        pos_goals = msg.index("今日のゴール")
+        pos_goals = msg.index("今日の目標")
         pos_habits = msg.index("今日の習慣チェック")
         pos_reflection = msg.index("振り返り")
         pos_wishes = msg.index("やりたいことリスト")
@@ -221,7 +221,7 @@ class TestMain:
             main()
 
         msg = mock_line.call_args[0][0]
-        assert "今日のゴール" in msg
+        assert "今日の目標" in msg
         assert "✓ ブログを書く" in msg
         assert "読書30分" not in msg
 

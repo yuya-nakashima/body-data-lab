@@ -75,7 +75,7 @@ button.save:disabled{opacity:.5;cursor:default}
     <span class="nav-date" id="navDate"></span>
   </div>
 
-  <!-- デイリーゴール -->
+  <!-- 今日の目標 -->
   <div class="sec-header">
     <span class="sec-label">今日の目標</span>
     <a class="nav-link" href="/ui/daily-goals">目標を管理 →</a>
@@ -272,7 +272,7 @@ async function loadGoals(){
     const data = await r.json();
     const goals = data.goals || [];
     if(goals.length === 0){
-      container.innerHTML = '<div class="no-groups-msg"><a href="/ui/daily-goals">今日のゴールを追加する →</a></div>';
+      container.innerHTML = '<div class="no-groups-msg"><a href="/ui/daily-goals">今日の目標を追加する →</a></div>';
     } else {
       container.innerHTML = '<div class="group-card"><div class="group-items">'+goals.map(buildGoalItem).join('')+'</div></div>';
     }

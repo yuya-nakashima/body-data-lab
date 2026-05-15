@@ -68,7 +68,7 @@ def build_daily_goals_section(goals: list[dict]) -> str:
     done_goals = [g for g in goals if g["done"]]
     if not done_goals:
         return ""
-    lines = ["【今日のゴール】"]
+    lines = ["【今日の目標】"]
     for goal in done_goals:
         count = goal.get("count", 1)
         suffix = f" × {count}" if count > 1 else ""

@@ -34,7 +34,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Helvetica Neue',sans-serif;ba
     <a class="nav-link" href="/ui/reflections">← 振り返りに戻る</a>
   </div>
   <div class="add-row">
-    <input class="txt-inp" id="new-goal" type="text" placeholder="新しいゴール（例：今日中にAを仕上げる）">
+    <input class="txt-inp" id="new-goal" type="text" placeholder="新しい目標（例：今日中にAを仕上げる）">
     <button class="btn-add" onclick="addGoal()">追加</button>
   </div>
   <div id="goalList"></div>
@@ -59,7 +59,7 @@ function render(goals){
   const el = document.getElementById('goalList');
   el.innerHTML = '';
   if(goals.length === 0){
-    el.innerHTML = '<div class="empty-msg">ゴールがありません。上から追加してください。</div>';
+    el.innerHTML = '<div class="empty-msg">目標がありません。上から追加してください。</div>';
     return;
   }
   goals.forEach(g => el.appendChild(buildRow(g)));
@@ -154,7 +154,7 @@ async function addGoal(){
 }
 
 async function deleteGoal(id, btn){
-  if(!confirm('このゴールを削除しますか？')) return;
+  if(!confirm('この目標を削除しますか？')) return;
   btn.disabled = true;
   const res = await fetch('/daily-goals/'+id, {method:'DELETE'});
   if(res.ok) load();
