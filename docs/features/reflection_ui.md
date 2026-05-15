@@ -138,7 +138,7 @@ Android MainActivity
 |---|---|
 | `app/routers/ui.py` | `GET /ui/reflections` エンドポイント追加 |
 
-### Android（body-data-lab-android）
+### Android（ninja-habits-android）
 
 | ファイル | 変更内容 |
 |---|---|
