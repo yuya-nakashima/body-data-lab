@@ -395,6 +395,14 @@ async function loadWishes(){
 
 init();
 loadWishes();
+
+window.addEventListener('pageshow', (e) => {
+  if (e.persisted) {
+    loadGoals();
+    loadGroups();
+    loadWishes();
+  }
+});
 </script>
 </body>
 </html>
