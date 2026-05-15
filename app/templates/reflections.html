@@ -75,6 +75,15 @@ button.save:disabled{opacity:.5;cursor:default}
     <span class="nav-date" id="navDate"></span>
   </div>
 
+  <!-- デイリーゴール -->
+  <div class="sec-header">
+    <span class="sec-label">Daily Goals</span>
+    <a class="nav-link" href="/ui/daily-goals">ゴールを管理 →</a>
+  </div>
+  <div id="goalList"></div>
+
+  <div class="divider"></div>
+
   <!-- 習慣スタック -->
   <div class="sec-header">
     <span class="sec-label">Habit Stacking</span>
@@ -209,6 +218,69 @@ async function adjustCount(btn, itemId, delta){
   });
 }
 
+function buildGoalItem(goal){
+  return `
+    <div class="habit-item">
+      <div class="chk${goal.done?' done':''}" onclick="toggleGoal(this,${goal.id})">
+        <svg width="10" height="10" viewBox="0 0 10 10"><polyline points="1,5 4,8 9,2" fill="none" stroke="white" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
+      </div>
+      <span class="habit-label${goal.done?' struck':''}">${escHtml(goal.content)}</span>
+      ${goal.done ? `<div class="count-ctrl"><button class="count-btn" onclick="adjustGoalCount(this,${goal.id},-1)">−</button><span class="count-num">${goal.count||1}</span><button class="count-btn" onclick="adjustGoalCount(this,${goal.id},1)">＋</button></div>` : ''}
+    </div>`;
+}
+
+async function toggleGoal(chkEl, goalId){
+  const done = !chkEl.classList.contains('done');
+  chkEl.classList.toggle('done', done);
+  const item = chkEl.closest('.habit-item');
+  const label = item.querySelector('.habit-label');
+  if(label) label.classList.toggle('struck', done);
+  let countCtrl = item.querySelector('.count-ctrl');
+  if(done){
+    if(!countCtrl){
+      countCtrl = document.createElement('div');
+      countCtrl.className = 'count-ctrl';
+      countCtrl.innerHTML = `<button class="count-btn" onclick="adjustGoalCount(this,${goalId},-1)">−</button><span class="count-num">1</span><button class="count-btn" onclick="adjustGoalCount(this,${goalId},1)">＋</button>`;
+      item.appendChild(countCtrl);
+    }
+  } else {
+    if(countCtrl) countCtrl.remove();
+  }
+  await fetch('/daily-goals/'+goalId+'/completion?day='+TODAY, {
+    method:'PATCH', headers:{'Content-Type':'application/json'},
+    body:JSON.stringify({done, count: done ? 1 : 0})
+  });
+}
+
+async function adjustGoalCount(btn, goalId, delta){
+  const ctrl = btn.closest('.count-ctrl');
+  const numEl = ctrl.querySelector('.count-num');
+  let count = parseInt(numEl.textContent) + delta;
+  if(count < 1) count = 1;
+  numEl.textContent = count;
+  await fetch('/daily-goals/'+goalId+'/completion?day='+TODAY, {
+    method:'PATCH', headers:{'Content-Type':'application/json'},
+    body:JSON.stringify({done: true, count})
+  });
+}
+
+async function loadGoals(){
+  const container = document.getElementById('goalList');
+  try{
+    const r = await fetch('/daily-goals?day='+TODAY);
+    if(!r.ok) throw new Error('status '+r.status);
+    const data = await r.json();
+    const goals = data.goals || [];
+    if(goals.length === 0){
+      container.innerHTML = '<div class="no-groups-msg"><a href="/ui/daily-goals">今日のゴールを追加する →</a></div>';
+    } else {
+      container.innerHTML = '<div class="group-card"><div class="group-items">'+goals.map(buildGoalItem).join('')+'</div></div>';
+    }
+  }catch(e){
+    container.innerHTML = '<div class="no-groups-msg">読み込みに失敗しました。</div>';
+  }
+}
+
 async function loadGroups(){
   const container = document.getElementById('groupList');
   try{
@@ -284,6 +356,7 @@ async function init(){
   document.getElementById('navDate').textContent=
     `${d.getFullYear()} / ${String(d.getMonth()+1).padStart(2,'0')} / ${String(d.getDate()).padStart(2,'0')}`;
   buildStreak();
+  loadGoals();
   loadGroups();
   try{
     const r=await fetch('/reflections/today');

@@ -32,7 +32,7 @@ db/            # SQLiteファイル
 
 ## 連携
 
-- **body-data-lab-android** がこの API・WebUI（`/ui/*`）を直接呼び出している。API変更時は Android 側への影響を確認する。
+- **ninja-habits-android** がこの API・WebUI（`/ui/*`）を直接呼び出している。API変更時は Android 側への影響を確認する。
 
 ## デプロイ
 

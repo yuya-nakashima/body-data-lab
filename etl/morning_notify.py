@@ -49,6 +49,33 @@ def fetch_wish_list() -> list[dict]:
     return result
 
 
+def fetch_daily_goals(target_date: str) -> list[dict]:
+    conn = get_conn()
+    rows = conn.execute(
+        """
+        SELECT g.content, COALESCE(c.done, 0) AS done, COALESCE(c.count, 0) AS count
+        FROM daily_goals g
+        LEFT JOIN daily_goal_completions c ON c.goal_id = g.id AND c.day = ?
+        ORDER BY g.sort_order, g.id
+        """,
+        (target_date,),
+    ).fetchall()
+    conn.close()
+    return [dict(r) for r in rows]
+
+
+def build_daily_goals_section(goals: list[dict]) -> str:
+    done_goals = [g for g in goals if g["done"]]
+    if not done_goals:
+        return ""
+    lines = ["【今日のゴール】"]
+    for goal in done_goals:
+        count = goal.get("count", 1)
+        suffix = f" × {count}" if count > 1 else ""
+        lines.append(f"  ✓ {goal['content']}{suffix}")
+    return "\n".join(lines)
+
+
 def fetch_habits(target_date: str) -> list[dict]:
     conn = get_conn()
     groups = conn.execute(
@@ -122,11 +149,12 @@ def main() -> None:
     today = jst_today.isoformat()
 
     try:
+        goals_section = build_daily_goals_section(fetch_daily_goals(today))
         habits_section = build_habits_section(fetch_habits(today))
         reflection_section = build_reflection_message(fetch_reflection(yesterday), yesterday)
         wish_section = build_wish_list_section(fetch_wish_list())
 
-        parts = [habits_section, reflection_section, wish_section]
+        parts = [goals_section, habits_section, reflection_section, wish_section]
         message = "\n".join(p for p in parts if p)
         send_line(message)
         logger.info("LINE notification sent for %s", yesterday)

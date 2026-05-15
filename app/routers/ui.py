@@ -28,6 +28,11 @@ def wishes_ui(request: Request):
     return templates.TemplateResponse(request, "wishes.html")
 
 
+@router.get("/daily-goals", response_class=HTMLResponse)
+def daily_goals_ui(request: Request):
+    return templates.TemplateResponse(request, "daily_goals.html")
+
+
 @router.get("/steps", response_class=HTMLResponse)
 def steps_ui(request: Request):
     return templates.TemplateResponse(request, "steps.html")

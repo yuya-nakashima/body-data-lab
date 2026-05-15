@@ -6,6 +6,7 @@ from unittest.mock import MagicMock, call, patch
 import pytest
 
 from etl.morning_notify import (
+    build_daily_goals_section,
     build_habits_section,
     build_wish_list_section,
     main,
@@ -95,6 +96,45 @@ class TestBuildWishListSection:
 
 
 # ---------------------------------------------------------------------------
+# build_daily_goals_section
+# ---------------------------------------------------------------------------
+
+class TestBuildDailyGoalsSection:
+    def test_empty_returns_empty(self):
+        assert build_daily_goals_section([]) == ""
+
+    def test_all_undone_returns_empty(self):
+        goals = [{"content": "読書", "done": 0, "count": 0}]
+        assert build_daily_goals_section(goals) == ""
+
+    def test_done_goal_shown(self):
+        goals = [{"content": "ブログを書く", "done": 1, "count": 1}]
+        result = build_daily_goals_section(goals)
+        assert "【今日のゴール】" in result
+        assert "✓ ブログを書く" in result
+
+    def test_undone_goal_omitted(self):
+        goals = [
+            {"content": "ブログを書く", "done": 1, "count": 1},
+            {"content": "読書30分", "done": 0, "count": 0},
+        ]
+        result = build_daily_goals_section(goals)
+        assert "✓ ブログを書く" in result
+        assert "読書30分" not in result
+
+    def test_count_shown_when_greater_than_1(self):
+        goals = [{"content": "体重測定", "done": 1, "count": 3}]
+        result = build_daily_goals_section(goals)
+        assert "✓ 体重測定 × 3" in result
+
+    def test_count_not_shown_when_1(self):
+        goals = [{"content": "体重測定", "done": 1, "count": 1}]
+        result = build_daily_goals_section(goals)
+        assert "× 1" not in result
+        assert "✓ 体重測定" in result
+
+
+# ---------------------------------------------------------------------------
 # main() — LINE + mail both called with same message
 # ---------------------------------------------------------------------------
 
@@ -118,12 +158,18 @@ SAMPLE_HABITS = [
 
 SAMPLE_WISHES = [{"name": "旅行", "items": ["京都"]}]
 
+SAMPLE_GOALS = [
+    {"content": "ブログを書く", "done": 1, "count": 1},
+    {"content": "読書30分", "done": 0, "count": 0},
+]
+
 
 @pytest.fixture()
 def mock_db(monkeypatch):
     monkeypatch.setattr("etl.morning_notify.fetch_reflection", lambda d: SAMPLE_REFLECTION)
     monkeypatch.setattr("etl.morning_notify.fetch_habits", lambda d: SAMPLE_HABITS)
     monkeypatch.setattr("etl.morning_notify.fetch_wish_list", lambda: SAMPLE_WISHES)
+    monkeypatch.setattr("etl.morning_notify.fetch_daily_goals", lambda d: SAMPLE_GOALS)
 
 
 class TestMain:
@@ -133,10 +179,11 @@ class TestMain:
             main()
 
         msg = mock_line.call_args[0][0]
+        pos_goals = msg.index("今日のゴール")
         pos_habits = msg.index("今日の習慣チェック")
         pos_reflection = msg.index("振り返り")
         pos_wishes = msg.index("やりたいことリスト")
-        assert pos_habits < pos_reflection < pos_wishes
+        assert pos_goals < pos_habits < pos_reflection < pos_wishes
 
     def test_sends_line_and_mail_with_same_message(self, mock_db):
         with patch("etl.morning_notify.send_line") as mock_line, \
@@ -168,6 +215,16 @@ class TestMain:
         assert "読書" in msg
         assert "良い一日だった" in msg
 
+    def test_message_contains_goals(self, mock_db):
+        with patch("etl.morning_notify.send_line") as mock_line, \
+             patch("etl.morning_notify.send_mail"):
+            main()
+
+        msg = mock_line.call_args[0][0]
+        assert "今日のゴール" in msg
+        assert "✓ ブログを書く" in msg
+        assert "読書30分" not in msg
+
     def test_message_contains_habits(self, mock_db):
         with patch("etl.morning_notify.send_line") as mock_line, \
              patch("etl.morning_notify.send_mail"):
@@ -191,6 +248,7 @@ class TestMain:
         monkeypatch.setattr("etl.morning_notify.fetch_reflection", lambda d: SAMPLE_REFLECTION)
         monkeypatch.setattr("etl.morning_notify.fetch_habits", lambda d: [])
         monkeypatch.setattr("etl.morning_notify.fetch_wish_list", lambda: SAMPLE_WISHES)
+        monkeypatch.setattr("etl.morning_notify.fetch_daily_goals", lambda d: [])
 
         with patch("etl.morning_notify.send_line") as mock_line, \
              patch("etl.morning_notify.send_mail"):
@@ -203,6 +261,7 @@ class TestMain:
         monkeypatch.setattr("etl.morning_notify.fetch_reflection", lambda d: SAMPLE_REFLECTION)
         monkeypatch.setattr("etl.morning_notify.fetch_habits", lambda d: SAMPLE_HABITS)
         monkeypatch.setattr("etl.morning_notify.fetch_wish_list", lambda: [])
+        monkeypatch.setattr("etl.morning_notify.fetch_daily_goals", lambda d: [])
 
         with patch("etl.morning_notify.send_line") as mock_line, \
              patch("etl.morning_notify.send_mail"):
@@ -244,6 +303,7 @@ class TestMain:
         monkeypatch.setattr("etl.morning_notify.fetch_reflection", fake_fetch_reflection)
         monkeypatch.setattr("etl.morning_notify.fetch_habits", fake_fetch_habits)
         monkeypatch.setattr("etl.morning_notify.fetch_wish_list", lambda: [])
+        monkeypatch.setattr("etl.morning_notify.fetch_daily_goals", lambda d: [])
 
         with patch("etl.morning_notify.send_line"), patch("etl.morning_notify.send_mail"):
             main()
