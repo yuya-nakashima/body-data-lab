@@ -53,7 +53,7 @@ def fetch_daily_goals(target_date: str) -> list[dict]:
     conn = get_conn()
     rows = conn.execute(
         """
-        SELECT g.content, COALESCE(c.done, 0) AS done, COALESCE(c.count, 0) AS count
+        SELECT g.content, g.minimum_goal, COALESCE(c.done, 0) AS done, COALESCE(c.count, 0) AS count
         FROM daily_goals g
         LEFT JOIN daily_goal_completions c ON c.goal_id = g.id AND c.day = ?
         ORDER BY g.sort_order, g.id
@@ -73,6 +73,8 @@ def build_daily_goals_section(goals: list[dict]) -> str:
         count = goal.get("count", 1)
         suffix = f" × {count}" if count > 1 else ""
         lines.append(f"  ✓ {goal['content']}{suffix}")
+        if goal.get("minimum_goal"):
+            lines.append(f"    ↳ ミニマム: {goal['minimum_goal']}")
     return "\n".join(lines)
 
 

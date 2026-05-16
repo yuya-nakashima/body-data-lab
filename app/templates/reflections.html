@@ -66,6 +66,7 @@ button.save:disabled{opacity:.5;cursor:default}
 .wish-cat-name{font-size:11px;font-weight:600;color:#aaa;letter-spacing:.08em;text-transform:uppercase;margin-bottom:6px}
 .wish-item{font-size:13px;color:#374151;padding:5px 0;border-bottom:1px solid #f5f5f3}
 .wish-item:last-child{border-bottom:none}
+.goal-min{display:block;font-size:11px;color:#aaa;margin-top:2px;line-height:1.4}
 </style>
 </head>
 <body>
@@ -219,12 +220,18 @@ async function adjustCount(btn, itemId, delta){
 }
 
 function buildGoalItem(goal){
+  const minHtml = goal.minimum_goal
+    ? `<span class="goal-min">ミニマム: ${escHtml(goal.minimum_goal)}</span>`
+    : '';
   return `
     <div class="habit-item">
       <div class="chk${goal.done?' done':''}" onclick="toggleGoal(this,${goal.id})">
         <svg width="10" height="10" viewBox="0 0 10 10"><polyline points="1,5 4,8 9,2" fill="none" stroke="white" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
       </div>
-      <span class="habit-label${goal.done?' struck':''}">${escHtml(goal.content)}</span>
+      <div style="flex:1;min-width:0">
+        <span class="habit-label${goal.done?' struck':''}">${escHtml(goal.content)}</span>
+        ${minHtml}
+      </div>
       ${goal.done ? `<div class="count-ctrl"><button class="count-btn" onclick="adjustGoalCount(this,${goal.id},-1)">−</button><span class="count-num">${goal.count||1}</span><button class="count-btn" onclick="adjustGoalCount(this,${goal.id},1)">＋</button></div>` : ''}
     </div>`;
 }

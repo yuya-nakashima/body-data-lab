@@ -133,6 +133,16 @@ class TestBuildDailyGoalsSection:
         assert "× 1" not in result
         assert "✓ 体重測定" in result
 
+    def test_minimum_goal_shown_when_present(self):
+        goals = [{"content": "瞑想30分", "done": 1, "count": 1, "minimum_goal": "1分だけでOK"}]
+        result = build_daily_goals_section(goals)
+        assert "ミニマム: 1分だけでOK" in result
+
+    def test_minimum_goal_omitted_when_none(self):
+        goals = [{"content": "瞑想30分", "done": 1, "count": 1, "minimum_goal": None}]
+        result = build_daily_goals_section(goals)
+        assert "ミニマム" not in result
+
 
 # ---------------------------------------------------------------------------
 # main() — LINE + mail both called with same message
@@ -159,8 +169,8 @@ SAMPLE_HABITS = [
 SAMPLE_WISHES = [{"name": "旅行", "items": ["京都"]}]
 
 SAMPLE_GOALS = [
-    {"content": "ブログを書く", "done": 1, "count": 1},
-    {"content": "読書30分", "done": 0, "count": 0},
+    {"content": "ブログを書く", "done": 1, "count": 1, "minimum_goal": "タイトルだけ考える"},
+    {"content": "読書30分", "done": 0, "count": 0, "minimum_goal": None},
 ]
 
 

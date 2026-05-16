@@ -16,6 +16,11 @@ router = APIRouter(prefix="/daily-goals", tags=["daily-goals"])
 class GoalIn(BaseModel):
     content: str
     sort_order: int = 0
+    minimum_goal: Optional[str] = None
+
+
+class GoalPatch(BaseModel):
+    minimum_goal: Optional[str] = None
 
 
 class CompletionPatch(BaseModel):
@@ -60,9 +65,10 @@ def create_goal(body: GoalIn):
         raise HTTPException(status_code=400, detail="content is required")
     created_at = datetime.now(JST).isoformat()
     conn = get_conn()
+    minimum_goal = body.minimum_goal.strip() if body.minimum_goal else None
     cursor = conn.execute(
-        "INSERT INTO daily_goals (content, sort_order, created_at) VALUES (?, ?, ?)",
-        (content, body.sort_order, created_at),
+        "INSERT INTO daily_goals (content, minimum_goal, sort_order, created_at) VALUES (?, ?, ?, ?)",
+        (content, minimum_goal, body.sort_order, created_at),
     )
     goal_id = cursor.lastrowid
     conn.commit()
@@ -76,6 +82,24 @@ def reorder_goals(body: ReorderIn):
     conn = get_conn()
     for i, goal_id in enumerate(body.ids):
         conn.execute("UPDATE daily_goals SET sort_order = ? WHERE id = ?", (i, goal_id))
+    conn.commit()
+    conn.close()
+    return {"ok": True}
+
+
+@router.patch("/{goal_id}")
+def patch_goal(goal_id: int, body: GoalPatch):
+    if "minimum_goal" not in body.model_fields_set:
+        return {"ok": True}
+    conn = get_conn()
+    if not conn.execute("SELECT id FROM daily_goals WHERE id = ?", (goal_id,)).fetchone():
+        conn.close()
+        return JSONResponse(status_code=404, content={"ok": False, "error": "not_found"})
+    minimum_goal = body.minimum_goal.strip() if body.minimum_goal else None
+    conn.execute(
+        "UPDATE daily_goals SET minimum_goal = ? WHERE id = ?",
+        (minimum_goal, goal_id),
+    )
     conn.commit()
     conn.close()
     return {"ok": True}
