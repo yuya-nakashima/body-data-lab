@@ -132,13 +132,13 @@ def _insert_daily(conn: sqlite3.Connection, day: str, value: float) -> None:
 
 @pytest.fixture()
 def tmp_db(tmp_path, monkeypatch):
-    """一時ファイル DB を用意し、DB_PATH をパッチして ensure_db() を実行する。"""
+    """一時ファイル DB を用意し、DB_PATH をパッチして run_migrations() を実行する。"""
     db_file = str(tmp_path / "test.sqlite3")
     monkeypatch.setattr("app.core.db.DB_PATH", db_file)
     monkeypatch.setattr("app.core.config.DB_PATH", db_file)
 
-    from app.core.db import ensure_db
-    ensure_db()
+    from app.core.db import run_migrations
+    run_migrations()
 
     conn = sqlite3.connect(db_file)
     conn.row_factory = sqlite3.Row
