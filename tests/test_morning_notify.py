@@ -40,7 +40,7 @@ class TestBuildHabitsSection:
             }
         ]
         result = build_habits_section(groups)
-        assert "【今日の習慣チェック】" in result
+        assert "【前日の習慣スタック】" in result
         assert "✓ 朝のストレッチ" in result
         assert "水2L" not in result
 
@@ -110,7 +110,7 @@ class TestBuildDailyGoalsSection:
     def test_done_goal_shown(self):
         goals = [{"content": "ブログを書く", "done": 1, "count": 1}]
         result = build_daily_goals_section(goals)
-        assert "【今日の目標】" in result
+        assert "【前日の目標達成】" in result
         assert "✓ ブログを書く" in result
 
     def test_undone_goal_omitted(self):
@@ -189,8 +189,8 @@ class TestMain:
             main()
 
         msg = mock_line.call_args[0][0]
-        pos_goals = msg.index("今日の目標")
-        pos_habits = msg.index("今日の習慣チェック")
+        pos_goals = msg.index("前日の目標達成")
+        pos_habits = msg.index("前日の習慣スタック")
         pos_reflection = msg.index("振り返り")
         pos_wishes = msg.index("やりたいことリスト")
         assert pos_goals < pos_habits < pos_reflection < pos_wishes
@@ -231,7 +231,7 @@ class TestMain:
             main()
 
         msg = mock_line.call_args[0][0]
-        assert "今日の目標" in msg
+        assert "前日の目標達成" in msg
         assert "✓ ブログを書く" in msg
         assert "読書30分" not in msg
 
@@ -241,7 +241,7 @@ class TestMain:
             main()
 
         msg = mock_line.call_args[0][0]
-        assert "今日の習慣チェック" in msg
+        assert "前日の習慣スタック" in msg
         assert "✓ ストレッチ" in msg
         assert "散歩" not in msg
 
@@ -265,7 +265,7 @@ class TestMain:
             main()
 
         msg = mock_line.call_args[0][0]
-        assert "今日の習慣チェック" not in msg
+        assert "前日の習慣スタック" not in msg
 
     def test_no_wish_list_omits_section(self, monkeypatch):
         monkeypatch.setattr("etl.morning_notify.fetch_reflection", lambda d: SAMPLE_REFLECTION)
@@ -295,7 +295,7 @@ class TestMain:
                 main()
 
     def test_uses_jst_date_not_utc(self, monkeypatch):
-        # UTC 15:30 = JST 翌日 00:30。UTC基準だと yesterday/today がずれる。
+        # UTC 15:30 = JST 翌日 00:30。UTC基準だと yesterday がずれる。
         # JST基準なら正しく JST 日付が使われることを確認する。
         jst_now = datetime(2026, 5, 14, 0, 30, tzinfo=JST)  # JST 2026-05-14 00:30
         monkeypatch.setattr("etl.morning_notify.datetime", _MockDatetime(jst_now))
@@ -307,19 +307,24 @@ class TestMain:
             return SAMPLE_REFLECTION
 
         def fake_fetch_habits(d):
-            captured["today"] = d
+            captured["habits_day"] = d
+            return []
+
+        def fake_fetch_daily_goals(d):
+            captured["goals_day"] = d
             return []
 
         monkeypatch.setattr("etl.morning_notify.fetch_reflection", fake_fetch_reflection)
         monkeypatch.setattr("etl.morning_notify.fetch_habits", fake_fetch_habits)
+        monkeypatch.setattr("etl.morning_notify.fetch_daily_goals", fake_fetch_daily_goals)
         monkeypatch.setattr("etl.morning_notify.fetch_wish_list", lambda: [])
-        monkeypatch.setattr("etl.morning_notify.fetch_daily_goals", lambda d: [])
 
         with patch("etl.morning_notify.send_line"), patch("etl.morning_notify.send_mail"):
             main()
 
         assert captured["yesterday"] == "2026-05-13"
-        assert captured["today"] == "2026-05-14"
+        assert captured["habits_day"] == "2026-05-13"
+        assert captured["goals_day"] == "2026-05-13"
 
 
 class _MockDatetime:

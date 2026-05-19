@@ -24,13 +24,7 @@ from fastapi import FastAPI
 
 from app.core.config import DB_PATH
 from app.core.db import run_migrations
-from app.routers.aggregate import router as aggregate_router
 from app.routers.focus import router as focus_router
-from app.routers.ingest import router as ingest_router
-from app.routers.metrics import router as metrics_router
-from app.routers.normalize import router as normalize_router
-from app.routers.quality import router as quality_router
-from app.routers.raw import router as raw_router
 from app.routers.daily_goals import router as daily_goals_router
 from app.routers.habit_groups import router as habit_groups_router
 from app.routers.reflections import router as reflections_router
@@ -51,12 +45,6 @@ def root():
 
 
 app.include_router(focus_router)
-app.include_router(ingest_router)
-app.include_router(raw_router)
-app.include_router(normalize_router)
-app.include_router(aggregate_router)
-app.include_router(quality_router)
-app.include_router(metrics_router)
 app.include_router(daily_goals_router)
 app.include_router(habit_groups_router)
 app.include_router(reflections_router)

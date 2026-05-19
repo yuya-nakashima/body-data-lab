@@ -68,7 +68,7 @@ def build_daily_goals_section(goals: list[dict]) -> str:
     done_goals = [g for g in goals if g["done"]]
     if not done_goals:
         return ""
-    lines = ["【今日の目標】"]
+    lines = ["【前日の目標達成】"]
     for goal in done_goals:
         count = goal.get("count", 1)
         suffix = f" × {count}" if count > 1 else ""
@@ -113,7 +113,7 @@ def build_habits_section(groups: list[dict]) -> str:
             lines.append(f"  ✓ {item['content']}{suffix}")
     if not lines:
         return ""
-    return "【今日の習慣チェック】" + "\n".join(lines)
+    return "【前日の習慣スタック】" + "\n".join(lines)
 
 
 def build_wish_list_section(categories: list[dict]) -> str:
@@ -148,11 +148,9 @@ def main() -> None:
     yesterday = (jst_today - timedelta(days=1)).isoformat()
     logger.info("Fetching reflection for %s", yesterday)
 
-    today = jst_today.isoformat()
-
     try:
-        goals_section = build_daily_goals_section(fetch_daily_goals(today))
-        habits_section = build_habits_section(fetch_habits(today))
+        goals_section = build_daily_goals_section(fetch_daily_goals(yesterday))
+        habits_section = build_habits_section(fetch_habits(yesterday))
         reflection_section = build_reflection_message(fetch_reflection(yesterday), yesterday)
         wish_section = build_wish_list_section(fetch_wish_list())
 
