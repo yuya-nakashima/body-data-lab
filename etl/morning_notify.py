@@ -53,7 +53,9 @@ def fetch_daily_goals(target_date: str) -> list[dict]:
     conn = get_conn()
     rows = conn.execute(
         """
-        SELECT g.content, g.minimum_goal, COALESCE(c.done, 0) AS done, COALESCE(c.count, 0) AS count
+        SELECT g.content, g.minimum_goal,
+               COALESCE(c.done, 0) AS done, COALESCE(c.count, 0) AS count,
+               COALESCE(c.minimum_done, 0) AS minimum_done
         FROM daily_goals g
         LEFT JOIN daily_goal_completions c ON c.goal_id = g.id AND c.day = ?
         ORDER BY g.sort_order, g.id
@@ -66,7 +68,11 @@ def fetch_daily_goals(target_date: str) -> list[dict]:
 
 def build_daily_goals_section(goals: list[dict]) -> str:
     done_goals = [g for g in goals if g["done"]]
-    if not done_goals:
+    min_only_goals = [
+        g for g in goals
+        if not g["done"] and g.get("minimum_done") and g.get("minimum_goal")
+    ]
+    if not done_goals and not min_only_goals:
         return ""
     lines = ["【前日の目標達成】"]
     for goal in done_goals:
@@ -75,6 +81,8 @@ def build_daily_goals_section(goals: list[dict]) -> str:
         lines.append(f"  ✓ {goal['content']}{suffix}")
         if goal.get("minimum_goal"):
             lines.append(f"    ↳ ミニマム: {goal['minimum_goal']}")
+    for goal in min_only_goals:
+        lines.append(f"  △ {goal['content']}（ミニマム達成: {goal['minimum_goal']}）")
     return "\n".join(lines)
 
 

@@ -28,6 +28,10 @@ class CompletionPatch(BaseModel):
     count: int = 1
 
 
+class MinimumCompletionPatch(BaseModel):
+    minimum_done: bool
+
+
 class ReorderIn(BaseModel):
     ids: list[int]
 
@@ -41,11 +45,12 @@ def _goals_with_completion(conn, day: Optional[str] = None) -> list[dict]:
         d = dict(row)
         if day:
             comp = conn.execute(
-                "SELECT done, count FROM daily_goal_completions WHERE goal_id = ? AND day = ?",
+                "SELECT done, count, minimum_done FROM daily_goal_completions WHERE goal_id = ? AND day = ?",
                 (row["id"], day),
             ).fetchone()
             d["done"] = bool(comp["done"]) if comp else False
             d["count"] = comp["count"] if comp else 0
+            d["minimum_done"] = bool(comp["minimum_done"]) if comp else False
         result.append(d)
     return result
 
@@ -118,6 +123,24 @@ def delete_goal(goal_id: int):
     return {"ok": True}
 
 
+@router.patch("/{goal_id}/minimum-completion")
+def patch_minimum_completion(goal_id: int, body: MinimumCompletionPatch, day: str = ""):
+    if not day:
+        raise HTTPException(status_code=400, detail="day is required")
+    conn = get_conn()
+    conn.execute(
+        """
+        INSERT INTO daily_goal_completions (goal_id, day, done, count, minimum_done)
+        VALUES (?, ?, 0, 0, ?)
+        ON CONFLICT(goal_id, day) DO UPDATE SET minimum_done = excluded.minimum_done
+        """,
+        (goal_id, day, 1 if body.minimum_done else 0),
+    )
+    conn.commit()
+    conn.close()
+    return {"ok": True}
+
+
 @router.patch("/{goal_id}/completion")
 def patch_completion(goal_id: int, body: CompletionPatch, day: str = ""):
     if not day:
@@ -126,11 +149,14 @@ def patch_completion(goal_id: int, body: CompletionPatch, day: str = ""):
     count = body.count if body.done else 0
     conn.execute(
         """
-        INSERT INTO daily_goal_completions (goal_id, day, done, count)
-        VALUES (?, ?, ?, ?)
-        ON CONFLICT(goal_id, day) DO UPDATE SET done = excluded.done, count = excluded.count
+        INSERT INTO daily_goal_completions (goal_id, day, done, count, minimum_done)
+        VALUES (?, ?, ?, ?, ?)
+        ON CONFLICT(goal_id, day) DO UPDATE SET
+          done = excluded.done,
+          count = excluded.count,
+          minimum_done = CASE WHEN excluded.done = 1 THEN 1 ELSE minimum_done END
         """,
-        (goal_id, day, 1 if body.done else 0, count),
+        (goal_id, day, 1 if body.done else 0, count, 1 if body.done else 0),
     )
     conn.commit()
     conn.close()

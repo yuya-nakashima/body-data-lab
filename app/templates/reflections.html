@@ -66,7 +66,10 @@ button.save:disabled{opacity:.5;cursor:default}
 .wish-cat-name{font-size:11px;font-weight:600;color:#aaa;letter-spacing:.08em;text-transform:uppercase;margin-bottom:6px}
 .wish-item{font-size:13px;color:#374151;padding:5px 0;border-bottom:1px solid #f5f5f3}
 .wish-item:last-child{border-bottom:none}
-.goal-min{display:block;font-size:11px;color:#aaa;margin-top:2px;line-height:1.4}
+.min-row{display:flex;align-items:center;gap:5px;margin-top:3px}
+.chk-min{width:14px;height:14px;border-radius:4px;flex-shrink:0}
+.chk-min-disabled{pointer-events:none}
+.goal-min{font-size:11px;color:#aaa;line-height:1.4}
 </style>
 </head>
 <body>
@@ -220,8 +223,14 @@ async function adjustCount(btn, itemId, delta){
 }
 
 function buildGoalItem(goal){
+  const minDone = goal.minimum_done || goal.done;
   const minHtml = goal.minimum_goal
-    ? `<span class="goal-min">ミニマム: ${escHtml(goal.minimum_goal)}</span>`
+    ? `<div class="min-row">
+         <div class="chk chk-min${minDone?' done':''}${goal.done?' chk-min-disabled':''}" onclick="toggleMinimum(this,${goal.id})">
+           <svg width="8" height="8" viewBox="0 0 10 10"><polyline points="1,5 4,8 9,2" fill="none" stroke="white" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
+         </div>
+         <span class="goal-min">ミニマム: ${escHtml(goal.minimum_goal)}</span>
+       </div>`
     : '';
   return `
     <div class="habit-item">
@@ -242,6 +251,14 @@ async function toggleGoal(chkEl, goalId){
   const item = chkEl.closest('.habit-item');
   const label = item.querySelector('.habit-label');
   if(label) label.classList.toggle('struck', done);
+  const minChk = item.querySelector('.chk-min');
+  if(minChk){
+    if(done){
+      minChk.classList.add('done', 'chk-min-disabled');
+    } else {
+      minChk.classList.remove('chk-min-disabled');
+    }
+  }
   let countCtrl = item.querySelector('.count-ctrl');
   if(done){
     if(!countCtrl){
@@ -256,6 +273,15 @@ async function toggleGoal(chkEl, goalId){
   await fetch('/daily-goals/'+goalId+'/completion?day='+TODAY, {
     method:'PATCH', headers:{'Content-Type':'application/json'},
     body:JSON.stringify({done, count: done ? 1 : 0})
+  });
+}
+
+async function toggleMinimum(chkEl, goalId){
+  const minimum_done = !chkEl.classList.contains('done');
+  chkEl.classList.toggle('done', minimum_done);
+  await fetch('/daily-goals/'+goalId+'/minimum-completion?day='+TODAY, {
+    method:'PATCH', headers:{'Content-Type':'application/json'},
+    body:JSON.stringify({minimum_done})
   });
 }
 
